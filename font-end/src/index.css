@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* Surface Layers */
+  --surface: #f8f9ff;
+  --surface-lowest: #ffffff;
+  --surface-low: #f1f4ff;
+  --surface-high: #dce9ff;
+  --surface-variant: #e2e8f0;
+  
+  /* Brand Colors */
+  --primary-indigo: #1A237E;
+  --primary-violet: #7C4DFF;
+  --signature-gradient: linear-gradient(135deg, #1A237E 0%, #7C4DFF 100%);
+  
+  /* Text Colors */
+  --on-surface: #0d1c2e;
+  --on-surface-muted: #64748b;
+  --on-surface-variant: #94a3b8;
+  
+  /* Status Colors */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  
+  /* Elevation Checks */
+  --tinted-shadow: 0 32px 64px -12px rgba(26, 35, 126, 0.06);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-blur: blur(20px);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Manrope', sans-serif;
+  background-color: var(--surface);
+  color: var(--on-surface);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* Typography Hierarchy */
+h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; }
+h3 { font-size: 1.125rem; font-weight: 600; }
+
+.label-sm {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--on-surface-muted);
+}
+
+/* Glassmorphism Classes */
+.glass-slab {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+}
+
+/* Button Styles */
+.btn-signature {
+  background: var(--signature-gradient);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-signature:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--tinted-shadow);
+}
+
+/* Card Styles - No 1px Border Rule */
+.surface-card {
+  background-color: var(--surface-lowest);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); /* Very subtle shadow for depth */
+}
+
+/* Layout Utilities */
+.app-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+.main-content {
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-variant);
+  border-radius: 10px;
+}

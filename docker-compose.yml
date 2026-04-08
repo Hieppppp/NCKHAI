@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:15
+    container_name: nckhai-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  back-end:
+    build:
+      context: ./back-end
+      dockerfile: Dockerfile
+      target: development
+    container_name: nckhai-backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      PORT: ${PORT}
+    command: npm run start:dev
+    volumes:
+      - ./back-end:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - db
+
+  font-end:
+    build:
+      context: ./font-end
+      dockerfile: Dockerfile
+    container_name: nckhai-frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: ${VITE_API_URL}
+    volumes:
+      - ./font-end:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - back-end
+
+volumes:
+  postgres_data:
