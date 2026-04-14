@@ -10,6 +10,9 @@ import { AiModule } from './ai/ai.module.js';
 import { CommitteesModule } from './committees/committees.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
+import { PublicationsModule } from './publications/publications.module.js';
+import { LibraryModule } from './library/library.module.js';
+import { FinanceModule } from './finance/finance.module.js';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from './auth/guards/roles.guard.js';
 
@@ -23,6 +26,9 @@ import { RolesGuard } from './auth/guards/roles.guard.js';
     CommitteesModule,
     NotificationsModule,
     DashboardModule,
+    PublicationsModule,
+    LibraryModule,
+    FinanceModule,
   ],
   controllers: [AppController],
   providers: [

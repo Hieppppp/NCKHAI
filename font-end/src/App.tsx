@@ -11,6 +11,8 @@ import WorkList from './pages/works/WorkList';
 import WorkDetail from './pages/works/WorkDetail';
 import WorkCreate from './pages/works/WorkCreate';
 import AiAnalysis from './pages/ai/AiAnalysis';
+import LibraryPage from './pages/LibraryPage';
+import FinancePage from './pages/FinancePage';
 import { Role } from './types';
 
 function Wrapped({ children }: { children: React.ReactNode }) {
@@ -39,8 +41,14 @@ function App() {
       {/* Committees */}
       <Route path="/committees" element={<Wrapped><CommitteeEvaluation /></Wrapped>} />
 
-      {/* Publications (keep existing) */}
+      {/* Publications */}
       <Route path="/publications" element={<Wrapped><Publications /></Wrapped>} />
+
+      {/* Finance */}
+      <Route path="/finance" element={<Wrapped><FinancePage /></Wrapped>} />
+
+      {/* Library */}
+      <Route path="/library" element={<Wrapped><LibraryPage /></Wrapped>} />
 
       {/* Admin */}
       <Route path="/admin/users" element={

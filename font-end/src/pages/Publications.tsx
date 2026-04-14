@@ -1,22 +1,44 @@
 import { useState, useRef } from 'react';
-import { 
-  Upload, 
-  CheckCircle2, 
-  Calendar, 
-  Plus, 
-  X, 
-  RotateCcw, 
-  Check, 
+import {
+  Upload,
+  CheckCircle2,
+  Calendar,
+  Plus,
+  X,
+  RotateCcw,
+  Check,
   Lightbulb,
   ZoomIn,
   ZoomOut,
-  Sparkles
+  Sparkles,
+  Loader2,
+  FileText,
 } from 'lucide-react';
+import { aiService } from '../services/aiService';
+import { publicationService } from '../services/publicationService';
+
+interface ExtractionResult {
+  title: string;
+  authors: string;
+  abstract: string;
+  publishedDate: string;
+  journalName: string;
+  keywords: string[];
+  confidence: number;
+  fileId?: number;
+  fileUrl?: string;
+}
 
 export const Publications = () => {
   const [isDragging, setIsDragging] = useState(false);
-  const [keywords, setKeywords] = useState(['Deep Learning', 'Climate Change', 'Remote Sensing']);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedId, setSavedId] = useState<number | null>(null);
+  const [extraction, setExtraction] = useState<ExtractionResult | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [newKeyword, setNewKeyword] = useState('');
+  const [formData, setFormData] = useState<ExtractionResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -24,20 +46,84 @@ export const Publications = () => {
     setIsDragging(true);
   };
 
-  const handleDragLeave = () => {
+  const handleDragLeave = () => setIsDragging(false);
+
+  const processFile = async (file: File) => {
+    setIsProcessing(true);
+    setSavedId(null);
+    setPreviewUrl(URL.createObjectURL(file));
+
+    try {
+      const result = await aiService.uploadAndProcess(file);
+      const ext: ExtractionResult = {
+        title: result.extractedTitle || result.title || '',
+        authors: result.extractedAuthors || result.authors || '',
+        abstract: result.extractedAbstract || result.abstract || '',
+        publishedDate: '',
+        journalName: '',
+        keywords: result.extractedKeywords || result.keywords || [],
+        confidence: result.ocrConfidence || result.confidence || 0,
+        fileId: result.fileId || result.id,
+      };
+      setExtraction(ext);
+      setFormData({ ...ext });
+    } catch {
+      alert('Lỗi xử lý file. Vui lòng thử lại.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
     setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
   };
 
   const addKeyword = () => {
-    if (newKeyword && !keywords.includes(newKeyword)) {
-      setKeywords([...keywords, newKeyword]);
+    if (formData && newKeyword && !formData.keywords.includes(newKeyword)) {
+      setFormData({ ...formData, keywords: [...formData.keywords, newKeyword] });
       setNewKeyword('');
     }
   };
 
   const removeKeyword = (tag: string) => {
-    setKeywords(keywords.filter(k => k !== tag));
+    if (formData) {
+      setFormData({ ...formData, keywords: formData.keywords.filter((k) => k !== tag) });
+    }
   };
+
+  const handleConfirmSave = async () => {
+    if (!formData) return;
+    setIsSaving(true);
+    try {
+      const pub = await publicationService.create({
+        title: formData.title,
+        authors: formData.authors,
+        abstract: formData.abstract,
+        journalName: formData.journalName,
+        publishedDate: formData.publishedDate || undefined,
+        keywords: formData.keywords,
+        confidence: formData.confidence,
+        fileId: formData.fileId,
+      });
+      // Auto confirm to add to library
+      await publicationService.confirm(pub.id);
+      setSavedId(pub.id);
+    } catch {
+      alert('Lỗi lưu publication. Vui lòng thử lại.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const confidencePercent = formData ? (formData.confidence * 100).toFixed(1) : '0';
 
   return (
     <div className="publications-page">
@@ -47,14 +133,20 @@ export const Publications = () => {
       </header>
 
       {/* Upload Section */}
-      <section 
+      <section
         className={`upload-zone ${isDragging ? 'dragging' : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        onDrop={(e) => { e.preventDefault(); setIsDragging(false); }}
+        onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
       >
-        <input type="file" ref={fileInputRef} style={{ display: 'none' }} />
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept=".pdf,.png,.jpg,.jpeg,.tiff,.bmp,.txt"
+          onChange={handleFileSelect}
+        />
         <div className="upload-content">
           <div className="upload-icon-circle">
             <Upload size={32} color="var(--primary-indigo)" />
@@ -65,134 +157,179 @@ export const Publications = () => {
         </div>
       </section>
 
-      <div className="processing-layout">
-        {/* Left: Document Preview */}
-        <div className="preview-column">
-          <div className="section-header">
-            <h3>BẢN XEM TRƯỚC TÀI LIỆU</h3>
-            <div className="zoom-controls">
-              <button className="icon-btn"><ZoomOut size={18} /></button>
-              <button className="icon-btn"><ZoomIn size={18} /></button>
+      {/* Processing / Results */}
+      {(isProcessing || formData) && (
+        <div className="processing-layout">
+          {/* Left: Document Preview */}
+          <div className="preview-column">
+            <div className="section-header">
+              <h3>BẢN XEM TRƯỚC TÀI LIỆU</h3>
+              <div className="zoom-controls">
+                <button className="icon-btn"><ZoomOut size={18} /></button>
+                <button className="icon-btn"><ZoomIn size={18} /></button>
+              </div>
+            </div>
+            <div className="document-frame">
+              {previewUrl ? (
+                previewUrl.endsWith('.pdf') || previewUrl.includes('blob:') ? (
+                  <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none', borderRadius: 8 }} />
+                ) : (
+                  <img src={previewUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                )
+              ) : (
+                <div className="doc-content-mock">
+                  <FileText size={48} color="#94a3b8" style={{ margin: 'auto' }} />
+                </div>
+              )}
             </div>
           </div>
-          <div className="document-frame">
-            <div className="doc-content-mock">
-               <div className="doc-title-placeholder"></div>
-               <div className="doc-text-line short"></div>
-               <div className="doc-text-line"></div>
-               <div className="doc-text-line"></div>
-               <div className="doc-text-line medium"></div>
-               <div className="doc-text-block"></div>
-               <div className="doc-text-line"></div>
-               <div className="doc-text-line short"></div>
-            </div>
-          </div>
-        </div>
 
-        {/* Right: AI Results */}
-        <div className="results-column">
-          <section className="surface-card ai-results-card">
-            <div className="results-header">
-              <div className="ai-status">
-                <div className="status-icon-wrap">
-                  <Sparkles size={20} className="sparkle-icon" />
-                </div>
-                <div className="status-text">
-                  <h4>Kết quả bóc tách AI</h4>
-                  <p>Xử lý hoàn tất trong 1.2 giây</p>
-                </div>
+          {/* Right: AI Results */}
+          <div className="results-column">
+            {isProcessing ? (
+              <div className="surface-card ai-results-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: '1.5rem' }}>
+                <Loader2 size={48} className="spin" color="var(--primary-indigo)" />
+                <h3 style={{ fontWeight: 700 }}>AI đang xử lý tài liệu...</h3>
+                <p style={{ color: 'var(--on-surface-muted)' }}>OCR + Trích xuất metadata</p>
               </div>
-              <div className="confidence-gauge">
-                <span className="gauge-value">98.4%</span>
-                <span className="gauge-label">ĐỘ TIN CẬY (CONFIDENCE)</span>
-              </div>
-            </div>
-
-            <form className="extraction-form">
-              <div className="form-group full">
-                <label>TÊN BÀI BÁO KHOA HỌC</label>
-                <div className="input-with-check">
-                  <input 
-                    type="text" 
-                    defaultValue="Ứng dụng mạng nơ-ron tích chập (CNN) trong việc dự đoán biến đổi khí hậu khu vực Đông Nam Á" 
-                  />
-                  <CheckCircle2 size={18} color="#10b981" className="success-check" />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>TÁC GIẢ CHÍNH</label>
-                  <input type="text" defaultValue="Nguyễn Văn A, Trần Thị B" />
-                </div>
-                <div className="form-group">
-                  <label>NGÀY XUẤT BẢN</label>
-                  <div className="input-with-icon">
-                    <input type="text" defaultValue="24/05/2024" />
-                    <Calendar size={18} color="var(--on-surface-muted)" />
+            ) : formData && (
+              <section className="surface-card ai-results-card">
+                {savedId ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                    <CheckCircle2 size={64} color="#10b981" style={{ margin: '0 auto 1.5rem' }} />
+                    <h3 style={{ fontWeight: 700, fontSize: '1.25rem', marginBottom: '0.5rem' }}>Lưu trữ thành công!</h3>
+                    <p style={{ color: 'var(--on-surface-muted)' }}>Bài báo đã được lưu vào hệ thống và thêm vào Thư viện số.</p>
+                    <button className="btn-confirm" style={{ marginTop: '2rem' }} onClick={() => { setFormData(null); setExtraction(null); setSavedId(null); setPreviewUrl(null); }}>
+                      Tải lên bài báo mới
+                    </button>
                   </div>
-                </div>
-              </div>
+                ) : (
+                  <>
+                    <div className="results-header">
+                      <div className="ai-status">
+                        <div className="status-icon-wrap">
+                          <Sparkles size={20} className="sparkle-icon" />
+                        </div>
+                        <div className="status-text">
+                          <h4>Kết quả bóc tách AI</h4>
+                          <p>Xử lý hoàn tất</p>
+                        </div>
+                      </div>
+                      <div className="confidence-gauge">
+                        <span className="gauge-value">{confidencePercent}%</span>
+                        <span className="gauge-label">ĐỘ TIN CẬY (CONFIDENCE)</span>
+                      </div>
+                    </div>
 
-              <div className="form-group full">
-                <label>TẠP CHÍ / HỘI NGHỊ</label>
-                <input type="text" defaultValue="IEEE Transactions on Geoscience and Remote Sensing" />
-              </div>
+                    <form className="extraction-form" onSubmit={(e) => e.preventDefault()}>
+                      <div className="form-group full">
+                        <label>TÊN BÀI BÁO KHOA HỌC</label>
+                        <div className="input-with-check">
+                          <input
+                            type="text"
+                            value={formData.title}
+                            readOnly={!editMode}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                          />
+                          {formData.title && <CheckCircle2 size={18} color="#10b981" className="success-check" />}
+                        </div>
+                      </div>
 
-              <div className="form-group full">
-                <label>TÓM TẮT (ABSTRACT)</label>
-                <textarea 
-                  defaultValue="Nghiên cứu này đề xuất một kiến trúc mạng nơ-ron tích chập cải tiến để phân tích dữ liệu vệ tinh đa phổ... Kết quả thực nghiệm cho thấy mô hình đạt độ chính xác 92% trong việc dự báo các hiện tượng cực đoan như hạn hán và lũ lụt."
-                ></textarea>
-              </div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>TÁC GIẢ CHÍNH</label>
+                          <input
+                            type="text"
+                            value={formData.authors}
+                            readOnly={!editMode}
+                            onChange={(e) => setFormData({ ...formData, authors: e.target.value })}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>NGÀY XUẤT BẢN</label>
+                          <div className="input-with-icon">
+                            <input
+                              type="text"
+                              value={formData.publishedDate}
+                              readOnly={!editMode}
+                              onChange={(e) => setFormData({ ...formData, publishedDate: e.target.value })}
+                              placeholder="DD/MM/YYYY"
+                            />
+                            <Calendar size={18} color="var(--on-surface-muted)" />
+                          </div>
+                        </div>
+                      </div>
 
-              <div className="form-group full">
-                <label>TỪ KHÓA (KEYWORDS)</label>
-                <div className="keywords-container">
-                  {keywords.map(tag => (
-                    <span key={tag} className="keyword-tag">
-                      {tag}
-                      <X size={14} className="remove-tag" onClick={() => removeKeyword(tag)} />
-                    </span>
-                  ))}
-                  <div className="add-keyword-input">
-                    <input 
-                      type="text" 
-                      placeholder="Thêm..." 
-                      value={newKeyword}
-                      onChange={(e) => setNewKeyword(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addKeyword())}
-                    />
-                    <Plus size={16} onClick={addKeyword} />
-                  </div>
-                </div>
-              </div>
+                      <div className="form-group full">
+                        <label>TẠP CHÍ / HỘI NGHỊ</label>
+                        <input
+                          type="text"
+                          value={formData.journalName}
+                          readOnly={!editMode}
+                          onChange={(e) => setFormData({ ...formData, journalName: e.target.value })}
+                        />
+                      </div>
 
-              <div className="form-actions">
-                <button type="button" className="btn-manual">
-                  <RotateCcw size={18} />
-                  Chỉnh sửa thủ công
-                </button>
-                <button type="button" className="btn-confirm">
-                  <Check size={18} />
-                  Xác nhận & Lưu trữ
-                </button>
-              </div>
-            </form>
-          </section>
+                      <div className="form-group full">
+                        <label>TÓM TẮT (ABSTRACT)</label>
+                        <textarea
+                          value={formData.abstract}
+                          readOnly={!editMode}
+                          onChange={(e) => setFormData({ ...formData, abstract: e.target.value })}
+                        />
+                      </div>
 
-          {/* AI Helper Box */}
-          <div className="ai-tip-box">
-             <div className="tip-icon">
-                <Lightbulb size={18} />
-             </div>
-             <div className="tip-content">
+                      <div className="form-group full">
+                        <label>TỪ KHÓA (KEYWORDS)</label>
+                        <div className="keywords-container">
+                          {formData.keywords.map((tag) => (
+                            <span key={tag} className="keyword-tag">
+                              {tag}
+                              {editMode && <X size={14} className="remove-tag" onClick={() => removeKeyword(tag)} />}
+                            </span>
+                          ))}
+                          {editMode && (
+                            <div className="add-keyword-input">
+                              <input
+                                type="text"
+                                placeholder="Thêm..."
+                                value={newKeyword}
+                                onChange={(e) => setNewKeyword(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addKeyword(); } }}
+                              />
+                              <Plus size={16} onClick={addKeyword} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="form-actions">
+                        <button type="button" className="btn-manual" onClick={() => setEditMode(!editMode)}>
+                          <RotateCcw size={18} />
+                          {editMode ? 'Khóa chỉnh sửa' : 'Chỉnh sửa thủ công'}
+                        </button>
+                        <button type="button" className="btn-confirm" onClick={handleConfirmSave} disabled={isSaving}>
+                          {isSaving ? <Loader2 size={18} className="spin" /> : <Check size={18} />}
+                          Xác nhận & Lưu trữ
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
+              </section>
+            )}
+
+            {/* AI Helper Box */}
+            <div className="ai-tip-box">
+              <div className="tip-icon"><Lightbulb size={18} /></div>
+              <div className="tip-content">
                 <strong>Mẹo từ Trợ lý AI:</strong>
                 <p>Tài liệu này dường như thiếu chỉ số DOI. Bạn có muốn tôi tìm kiếm DOI tự động dựa trên tên bài báo không?</p>
-             </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <style>{`
         .publications-page {
@@ -228,359 +365,104 @@ export const Publications = () => {
           margin: 0 auto 1.5rem;
         }
 
-        .upload-content h3 {
-          font-size: 1.25rem;
-          font-weight: 700;
-          margin-bottom: 0.5rem;
-        }
-
-        .upload-content p {
-          color: var(--on-surface-muted);
-          font-size: 0.875rem;
-          margin-bottom: 2rem;
-        }
+        .upload-content h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .upload-content p { color: var(--on-surface-muted); font-size: 0.875rem; margin-bottom: 2rem; }
 
         .btn-upload-trigger {
-          background: #eef2ff;
-          color: var(--primary-indigo);
-          border: none;
-          padding: 0.875rem 2rem;
-          border-radius: 12px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.2s;
+          background: #eef2ff; color: var(--primary-indigo); border: none;
+          padding: 0.875rem 2rem; border-radius: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s;
         }
+        .btn-upload-trigger:hover { background: var(--primary-indigo); color: white; }
 
-        .btn-upload-trigger:hover {
-          background: var(--primary-indigo);
-          color: white;
-        }
+        .processing-layout { display: grid; grid-template-columns: 460px 1fr; gap: 2rem; align-items: start; }
 
-        .processing-layout {
-          display: grid;
-          grid-template-columns: 460px 1fr;
-          gap: 2rem;
-          align-items: start;
-        }
-
-        .section-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1.25rem;
-        }
-
-        .section-header h3 {
-          font-size: 0.8125rem;
-          font-weight: 800;
-          color: var(--on-surface-muted);
-          letter-spacing: 0.05em;
-        }
-
-        .zoom-controls {
-          display: flex;
-          gap: 0.5rem;
-        }
-
-        .icon-btn {
-          background: var(--surface-low);
-          border: none;
-          padding: 0.5rem;
-          border-radius: 8px;
-          cursor: pointer;
-          color: var(--on-surface-muted);
-        }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+        .section-header h3 { font-size: 0.8125rem; font-weight: 800; color: var(--on-surface-muted); letter-spacing: 0.05em; }
+        .zoom-controls { display: flex; gap: 0.5rem; }
+        .icon-btn { background: var(--surface-low); border: none; padding: 0.5rem; border-radius: 8px; cursor: pointer; color: var(--on-surface-muted); }
 
         .document-frame {
-          background: #334155;
-          border-radius: 16px;
-          height: 640px;
-          padding: 2.5rem;
-          overflow: hidden;
+          background: #334155; border-radius: 16px; height: 640px; padding: 0.5rem; overflow: hidden;
           box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
 
         .doc-content-mock {
-          background: white;
-          width: 100%;
-          height: 100%;
-          border-radius: 4px;
-          padding: 3rem;
-          display: flex;
-          flex-direction: column;
-          gap: 1.25rem;
+          background: white; width: 100%; height: 100%; border-radius: 4px;
+          display: flex; align-items: center; justify-content: center;
         }
 
-        .doc-title-placeholder {
-          height: 24px;
-          width: 80%;
-          background: #e2e8f0;
-          margin-bottom: 2rem;
-        }
-
-        .doc-text-line {
-          height: 10px;
-          width: 100%;
-          background: #f1f5f9;
-        }
-
-        .doc-text-line.short { width: 40%; }
-        .doc-text-line.medium { width: 65%; }
-        .doc-text-block {
-          height: 100px;
-          width: 100%;
-          background: #f1f5f9;
-          margin: 1rem 0;
-        }
-
-        .ai-results-card {
-          padding: 2.5rem;
-        }
+        .ai-results-card { padding: 2.5rem; }
 
         .results-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 2.5rem;
-          padding-bottom: 2.5rem;
-          border-bottom: 1px solid var(--surface-low);
+          display: flex; justify-content: space-between; align-items: flex-start;
+          margin-bottom: 2.5rem; padding-bottom: 2.5rem; border-bottom: 1px solid var(--surface-low);
         }
+        .ai-status { display: flex; gap: 1rem; align-items: center; }
+        .status-icon-wrap { background: #eef2ff; color: var(--primary-indigo); padding: 0.75rem; border-radius: 12px; }
+        .status-text h4 { font-size: 1.125rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .status-text p { font-size: 0.8125rem; color: var(--on-surface-muted); }
 
-        .ai-status {
-          display: flex;
-          gap: 1rem;
-          align-items: center;
-        }
+        .confidence-gauge { text-align: right; display: flex; flex-direction: column; gap: 0.5rem; }
+        .gauge-value { font-size: 2.25rem; font-weight: 800; color: var(--primary-violet); line-height: 1; }
+        .gauge-label { font-size: 0.625rem; font-weight: 800; color: var(--on-surface-muted); letter-spacing: 0.05em; }
 
-        .status-icon-wrap {
-          background: #eef2ff;
-          color: var(--primary-indigo);
-          padding: 0.75rem;
-          border-radius: 12px;
-        }
-
-        .status-text h4 {
-          font-size: 1.125rem;
-          font-weight: 700;
-          margin-bottom: 0.25rem;
-        }
-
-        .status-text p {
-          font-size: 0.8125rem;
-          color: var(--on-surface-muted);
-        }
-
-        .confidence-gauge {
-          text-align: right;
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-
-        .gauge-value {
-          font-size: 2.25rem;
-          font-weight: 800;
-          color: var(--primary-violet);
-          line-height: 1;
-        }
-
-        .gauge-label {
-          font-size: 0.625rem;
-          font-weight: 800;
-          color: var(--on-surface-muted);
-          letter-spacing: 0.05em;
-        }
-
-        .extraction-form {
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-        }
-
-        .form-row {
-          display: grid;
-          grid-template-columns: 1fr 200px;
-          gap: 1.5rem;
-        }
-
-        .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        .form-group label {
-          font-size: 0.75rem;
-          font-weight: 800;
-          color: var(--on-surface-muted);
-          letter-spacing: 0.05em;
-        }
-
+        .extraction-form { display: flex; flex-direction: column; gap: 1.5rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 200px; gap: 1.5rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.75rem; }
+        .form-group label { font-size: 0.75rem; font-weight: 800; color: var(--on-surface-muted); letter-spacing: 0.05em; }
         .form-group input, .form-group textarea {
-          background: #f8faff;
-          border: 1px solid transparent;
-          border-radius: 12px;
-          padding: 1rem 1.25rem;
-          font-size: 0.9375rem;
-          color: var(--on-surface);
-          outline: none;
-          transition: border-color 0.2s;
+          background: #f8faff; border: 1px solid transparent; border-radius: 12px;
+          padding: 1rem 1.25rem; font-size: 0.9375rem; color: var(--on-surface); outline: none; transition: border-color 0.2s;
         }
+        .form-group input:focus, .form-group textarea:focus { border-color: var(--primary-indigo); background: white; }
 
-        .form-group input:focus, .form-group textarea:focus {
-          border-color: var(--primary-indigo);
-          background: white;
-        }
-
-        .input-with-check, .input-with-icon {
-          position: relative;
-          display: flex;
-          align-items: center;
-        }
-
-        .input-with-check input, .input-with-icon input {
-          width: 100%;
-        }
-
-        .success-check {
-          position: absolute;
-          right: 1.25rem;
-        }
-
-        .input-with-icon svg {
-          position: absolute;
-          right: 1.25rem;
-        }
-
-        .form-group textarea {
-          height: 120px;
-          resize: none;
-          line-height: 1.6;
-        }
+        .input-with-check, .input-with-icon { position: relative; display: flex; align-items: center; }
+        .input-with-check input, .input-with-icon input { width: 100%; }
+        .success-check { position: absolute; right: 1.25rem; }
+        .input-with-icon svg { position: absolute; right: 1.25rem; }
+        .form-group textarea { height: 120px; resize: none; line-height: 1.6; }
 
         .keywords-container {
-          background: #f8faff;
-          border-radius: 12px;
-          padding: 0.75rem;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.625rem;
-          align-items: center;
+          background: #f8faff; border-radius: 12px; padding: 0.75rem;
+          display: flex; flex-wrap: wrap; gap: 0.625rem; align-items: center;
         }
-
         .keyword-tag {
-          background: #eef2ff;
-          color: var(--primary-indigo);
-          padding: 0.5rem 1rem;
-          border-radius: 100px;
-          font-size: 0.8125rem;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
+          background: #eef2ff; color: var(--primary-indigo); padding: 0.5rem 1rem;
+          border-radius: 100px; font-size: 0.8125rem; font-weight: 700;
+          display: flex; align-items: center; gap: 0.5rem;
         }
+        .remove-tag { cursor: pointer; opacity: 0.6; }
+        .remove-tag:hover { opacity: 1; }
+        .add-keyword-input { display: flex; align-items: center; gap: 0.5rem; padding-left: 0.5rem; }
+        .add-keyword-input input { background: transparent !important; border: none !important; padding: 0 !important; width: 80px; font-size: 0.8125rem; }
+        .add-keyword-input svg { color: var(--on-surface-muted); cursor: pointer; }
 
-        .remove-tag {
-          cursor: pointer;
-          opacity: 0.6;
-        }
-
-        .remove-tag:hover {
-          opacity: 1;
-        }
-
-        .add-keyword-input {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding-left: 0.5rem;
-        }
-
-        .add-keyword-input input {
-          background: transparent !important;
-          border: none !important;
-          padding: 0 !important;
-          width: 80px;
-          font-size: 0.8125rem;
-        }
-
-        .add-keyword-input svg {
-          color: var(--on-surface-muted);
-          cursor: pointer;
-        }
-
-        .form-actions {
-          display: flex;
-          gap: 1rem;
-          margin-top: 1.5rem;
-        }
-
+        .form-actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
         .btn-manual {
-          flex: 1;
-          background: #f1f5f9;
-          color: var(--on-surface-muted);
-          border: none;
-          padding: 1.125rem;
-          border-radius: 14px;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.75rem;
-          cursor: pointer;
+          flex: 1; background: #f1f5f9; color: var(--on-surface-muted); border: none;
+          padding: 1.125rem; border-radius: 14px; font-weight: 700;
+          display: flex; align-items: center; justify-content: center; gap: 0.75rem; cursor: pointer;
         }
-
         .btn-confirm {
-          flex: 1;
-          background: var(--primary-indigo);
-          color: white;
-          border: none;
-          padding: 1.125rem;
-          border-radius: 14px;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.75rem;
-          cursor: pointer;
+          flex: 1; background: var(--primary-indigo); color: white; border: none;
+          padding: 1.125rem; border-radius: 14px; font-weight: 700;
+          display: flex; align-items: center; justify-content: center; gap: 0.75rem; cursor: pointer;
           box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
         }
+        .btn-confirm:disabled { opacity: 0.7; cursor: not-allowed; }
 
         .ai-tip-box {
-          margin-top: 2rem;
-          background: #f0f9ff;
-          border-radius: 16px;
-          padding: 1.5rem;
-          display: flex;
-          gap: 1.25rem;
-          align-items: center;
+          margin-top: 2rem; background: #f0f9ff; border-radius: 16px; padding: 1.5rem;
+          display: flex; gap: 1.25rem; align-items: center;
         }
+        .tip-icon { color: #0ea5e9; }
+        .tip-content strong { display: block; font-size: 0.875rem; margin-bottom: 0.25rem; color: #0369a1; }
+        .tip-content p { font-size: 0.8125rem; color: #0369a1; line-height: 1.5; }
 
-        .tip-icon {
-          color: #0ea5e9;
-        }
-
-        .tip-content strong {
-          display: block;
-          font-size: 0.875rem;
-          margin-bottom: 0.25rem;
-          color: #0369a1;
-        }
-
-        .tip-content p {
-          font-size: 0.8125rem;
-          color: #0369a1;
-          line-height: 1.5;
-        }
-
-        .sparkle-icon {
-          animation: rotate 4s linear infinite;
-        }
-
-        @keyframes rotate {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
+        .sparkle-icon { animation: rotate 4s linear infinite; }
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );

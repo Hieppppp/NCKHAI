@@ -33,8 +33,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9002:9000"
+      - "9003:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -47,25 +47,9 @@ services:
         limits:
           memory: 256M
 
-  # ─── Ollama (Local LLM - qwen2.5:3b) ──────────────────
-  ollama:
-    image: ollama/ollama:latest
-    container_name: nckhai-ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    deploy:
-      resources:
-        limits:
-          memory: 4096M
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list | grep -q . || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
+  # ─── Ollama: dùng local (host) cho nhẹ, không chạy trong Docker ──
+  # Ollama local: http://localhost:11434
+  # Pull model: ollama pull qwen2.5:3b
 
   # ─── Python AI Service (OCR + NLP + LLM proxy) ────────
   ai-service:
@@ -75,13 +59,13 @@ services:
     container_name: nckhai-ai
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: ${MINIO_BUCKET}
-      OLLAMA_URL: http://ollama:11434
+      OLLAMA_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     depends_on:
@@ -114,7 +98,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: ${MINIO_BUCKET}
-      MINIO_PUBLIC_URL: http://localhost:9000
+      MINIO_PUBLIC_URL: http://localhost:9002
     volumes:
       - ./back-end:/usr/src/app
       - backend_node_modules:/usr/src/app/node_modules
@@ -154,7 +138,6 @@ services:
 volumes:
   postgres_data:          # DB data → không mất khi restart
   minio_data:             # File uploads → không mất khi restart
-  ollama_data:            # LLM model cache → không tải lại
   backend_node_modules:
   backend_prisma:
   frontend_node_modules:
