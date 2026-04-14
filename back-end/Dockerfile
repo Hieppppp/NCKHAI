@@ -1,4 +1,4 @@
-# Base image
+# Base image - Alpine for smaller size
 FROM node:20-alpine AS development
 
 WORKDIR /usr/src/app
@@ -9,7 +9,15 @@ RUN npm install
 
 COPY . .
 
-RUN npm run build
+# Generate Prisma client
+RUN npx prisma generate
+
+# Make entrypoint executable
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["npm", "run", "start:dev"]
 
 # Production image
 FROM node:20-alpine AS production
@@ -24,5 +32,10 @@ COPY package*.json ./
 RUN npm install --only=production
 
 COPY --from=development /usr/src/app/dist ./dist
+COPY --from=development /usr/src/app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=development /usr/src/app/prisma ./prisma
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "dist/main"]

@@ -1,21 +1,24 @@
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  FileText, 
-  Users, 
-  DollarSign, 
-  Library, 
+import {
+  LayoutDashboard,
+  BookOpen,
+  FileText,
+  Users,
+  DollarSign,
+  Library,
   Cpu,
   Settings,
   LogOut,
-  PlusCircle
+  PlusCircle,
+  UserCog,
 } from 'lucide-react';
+import { Role } from '../types';
 
 export interface MenuItem {
   key: string;
   name: string;
   icon: any;
   path?: string;
+  roles?: Role[];
 }
 
 export const mainMenuItems: MenuItem[] = [
@@ -25,7 +28,8 @@ export const mainMenuItems: MenuItem[] = [
   { key: 'committees', name: 'Hội đồng chấm điểm', icon: Users, path: '/committees' },
   { key: 'finance', name: 'Kinh phí & Khen thưởng', icon: DollarSign, path: '/finance' },
   { key: 'library', name: 'Thư viện số', icon: Library, path: '/library' },
-  { key: 'ai-assistant', name: 'Trợ lý AI', icon: Cpu, path: '/ai-assistant' },
+  { key: 'ai-assistant', name: 'Trợ lý AI', icon: Cpu, path: '/ai' },
+  { key: 'user-management', name: 'Quản lý người dùng', icon: UserCog, path: '/admin/users', roles: [Role.ADMIN] },
 ];
 
 export const bottomMenuItems: MenuItem[] = [
