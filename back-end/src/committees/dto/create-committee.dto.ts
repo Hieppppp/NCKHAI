@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsArray, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsNumber, IsArray, IsDateString } from 'class-validator';
 
 export class CreateCommitteeDto {
   @IsString()
@@ -31,8 +31,13 @@ export class SubmitReviewDto {
   @IsOptional()
   committeeId?: number;
 
+  @IsNumber()
   innovationScore: number;     // 0-40
+
+  @IsNumber()
   feasibilityScore: number;    // 0-30
+
+  @IsNumber()
   impactScore: number;         // 0-30
 
   @IsString()

@@ -59,6 +59,37 @@ enum NotificationType {
   SYSTEM
 }
 
+enum PublicationStatus {
+  DRAFT
+  CONFIRMED
+  PUBLISHED
+}
+
+enum TransactionType {
+  ALLOCATION
+  DISBURSEMENT
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum RewardType {
+  CASH
+  CERTIFICATE
+  LETTER
+}
+
+enum RewardStatus {
+  PENDING
+  APPROVED
+  AWARDED
+}
+
 // ─── User ────────────────────────────────────────────────
 
 model User {
@@ -79,6 +110,11 @@ model User {
   reviews          Review[]
   notifications    Notification[]
   uploadedFiles    FileUpload[]
+  publications     Publication[]
+  libraryItems     LibraryDocument[]
+  rewards          Reward[]
+  approvedTransactions BudgetTransaction[] @relation("TransactionApprover")
+  approvedRewards  Reward[]              @relation("RewardApprover")
 }
 
 // ─── Scientific Work (Core Entity) ──────────────────────
@@ -120,6 +156,10 @@ model ScientificWork {
   committees     Committee[]
   reviews        Review[]
   notifications  Notification[]
+  publications   Publication[]
+  libraryItems   LibraryDocument[]
+  budgetTransactions BudgetTransaction[]
+  rewards        Reward[]
 }
 
 // ─── Workflow ────────────────────────────────────────────
@@ -222,6 +262,8 @@ model FileUpload {
 
   uploaderId Int
   uploader   User @relation(fields: [uploaderId], references: [id])
+
+  publications Publication[]
 }
 
 // ─── Notification ────────────────────────────────────────
@@ -240,4 +282,127 @@ model Notification {
 
   workId Int?
   work   ScientificWork? @relation(fields: [workId], references: [id], onDelete: SetNull)
+}
+
+// ─── Publication (Công bố khoa học) ─────────────────────
+
+model Publication {
+  id            Int               @id @default(autoincrement())
+  title         String
+  authors       String
+  abstract      String?
+  journalName   String?
+  conferenceName String?
+  publishedDate DateTime?
+  doi           String?
+  issn          String?
+  keywords      String[]
+  confidence    Float?
+  status        PublicationStatus  @default(DRAFT)
+
+  fileId        Int?
+  file          FileUpload?       @relation(fields: [fileId], references: [id])
+
+  userId        Int
+  user          User              @relation(fields: [userId], references: [id])
+
+  workId        Int?
+  work          ScientificWork?   @relation(fields: [workId], references: [id], onDelete: SetNull)
+
+  libraryItem   LibraryDocument?
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+// ─── Library Document (Kho lưu trữ số Thông minh) ──────
+
+model LibraryDocument {
+  id            Int        @id @default(autoincrement())
+  title         String
+  authors       String
+  abstract      String?
+  keywords      String[]
+  tags          String[]
+  category      String?
+  type          WorkType
+  level         WorkLevel?
+  aiScore       Float?
+  viewCount     Int        @default(0)
+  downloadCount Int        @default(0)
+
+  publicationId Int?       @unique
+  publication   Publication? @relation(fields: [publicationId], references: [id], onDelete: SetNull)
+
+  workId        Int?
+  work          ScientificWork? @relation(fields: [workId], references: [id], onDelete: SetNull)
+
+  userId        Int
+  user          User       @relation(fields: [userId], references: [id])
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+// ─── Budget (Ngân sách) ─────────────────────────────────
+
+model Budget {
+  id              Int      @id @default(autoincrement())
+  name            String
+  totalAmount     Float
+  allocatedAmount Float    @default(0)
+  disbursedAmount Float    @default(0)
+  fiscalYear      Int
+  department      String?
+
+  transactions    BudgetTransaction[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Budget Transaction (Giao dịch ngân sách) ──────────
+
+model BudgetTransaction {
+  id          Int               @id @default(autoincrement())
+  amount      Float
+  type        TransactionType
+  description String?
+  status      TransactionStatus @default(PENDING)
+
+  budgetId    Int
+  budget      Budget            @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  workId      Int?
+  work        ScientificWork?   @relation(fields: [workId], references: [id], onDelete: SetNull)
+
+  approvedById Int?
+  approvedBy   User?            @relation("TransactionApprover", fields: [approvedById], references: [id])
+
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+// ─── Reward (Khen thưởng) ───────────────────────────────
+
+model Reward {
+  id          Int          @id @default(autoincrement())
+  title       String
+  description String?
+  type        RewardType
+  amount      Float?
+  period      String?
+  status      RewardStatus @default(PENDING)
+
+  userId      Int
+  user        User         @relation(fields: [userId], references: [id])
+
+  workId      Int?
+  work        ScientificWork? @relation(fields: [workId], references: [id], onDelete: SetNull)
+
+  approvedById Int?
+  approvedBy   User?        @relation("RewardApprover", fields: [approvedById], references: [id])
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
