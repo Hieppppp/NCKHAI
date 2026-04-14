@@ -40,7 +40,14 @@ Thumbs.db
 .DS_Store
 
 # Prisma
-**/prisma/migrations
 **/prisma/*.db
 **/prisma/*.db-journal
-!**/prisma/schema.prisma
+
+# Python
+**/__pycache__
+**/*.pyc
+**/.venv
+
+# Uploads (stored in MinIO)
+**/uploads/*
+!**/uploads/.gitkeep

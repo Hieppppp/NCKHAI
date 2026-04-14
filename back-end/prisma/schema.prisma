@@ -1,31 +1,243 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-model ScientificWork {
-  id          Int      @id @default(autoincrement())
-  title       String
-  author      String
-  abstract    String?
-  content     String?
-  aiRank      String?
-  aiScore     Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// ─── Enums ───────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  REVIEWER
+  LECTURER
+  STUDENT
 }
+
+enum WorkStatus {
+  DRAFT
+  SUBMITTED
+  OUTLINE_REVIEW
+  PROPOSAL_REVIEW
+  IN_PROGRESS
+  REVIEW
+  REVISION
+  ACCEPTED
+  REJECTED
+  ARCHIVED
+}
+
+enum WorkLevel {
+  UNIVERSITY
+  MINISTRY
+  STATE
+}
+
+enum WorkType {
+  JOURNAL_ARTICLE
+  CONFERENCE_PAPER
+  RESEARCH_PROJECT
+  PATENT
+  TEXTBOOK
+  THESIS
+}
+
+enum FileCategory {
+  MANUSCRIPT
+  PROPOSAL
+  REPORT
+  REVIEW_FORM
+  CERTIFICATE
+  ATTACHMENT
+}
+
+enum NotificationType {
+  WORKFLOW
+  COMMITTEE
+  DEADLINE
+  SYSTEM
+}
+
+// ─── User ────────────────────────────────────────────────
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String?
-  password  String
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  name         String?
+  password     String
+  role         Role     @default(STUDENT)
+  isActive     Boolean  @default(true)
+  department   String?
+  specialization String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  scientificWorks  ScientificWork[]
+  committeeMembers CommitteeMember[]
+  reviews          Review[]
+  notifications    Notification[]
+  uploadedFiles    FileUpload[]
+}
+
+// ─── Scientific Work (Core Entity) ──────────────────────
+
+model ScientificWork {
+  id          Int        @id @default(autoincrement())
+  title       String
+  authors     String
+  abstract    String?
+  content     String?
+  keywords    String[]
+  type        WorkType   @default(RESEARCH_PROJECT)
+  level       WorkLevel  @default(UNIVERSITY)
+  status      WorkStatus @default(DRAFT)
+
+  // AI analysis results
+  aiScore         Int?
+  aiRank          String?
+  aiSummary       String?
+  aiKeywords      String[]
+  similarityScore Float?
+
+  // Budget & metrics
+  budget        Float?
+  researchHours Float?
+  journalName   String?
+  issn          String?
+  doi           String?
+  publishedDate DateTime?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  files          FileUpload[]
+  workflowSteps  WorkflowStep[]
+  committees     Committee[]
+  reviews        Review[]
+  notifications  Notification[]
+}
+
+// ─── Workflow ────────────────────────────────────────────
+
+model WorkflowStep {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  order       Int
+  status      WorkStatus
+  comment     String?
+  completedAt DateTime?
+  dueDate     DateTime?
+  createdAt   DateTime   @default(now())
+
+  workId Int
+  work   ScientificWork @relation(fields: [workId], references: [id], onDelete: Cascade)
+}
+
+// ─── Committee ───────────────────────────────────────────
+
+model Committee {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  meetingDate DateTime?
+  location    String?
+  finalScore  Float?
+  conclusion  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workId  Int
+  work    ScientificWork @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  members CommitteeMember[]
+  reviews Review[]
+}
+
+model CommitteeMember {
+  id        Int    @id @default(autoincrement())
+  role      String // "chair", "secretary", "reviewer", "member"
+  createdAt DateTime @default(now())
+
+  committeeId Int
+  committee   Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  @@unique([committeeId, userId])
+}
+
+// ─── Review / Scoring ────────────────────────────────────
+
+model Review {
+  id             Int    @id @default(autoincrement())
+  innovationScore    Float?   // 0-40
+  feasibilityScore   Float?   // 0-30
+  impactScore        Float?   // 0-30
+  totalScore         Float?
+  comment            String?
+  recommendation     String?  // "accept", "revise", "reject"
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workId      Int
+  work        ScientificWork @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  reviewerId  Int
+  reviewer    User @relation(fields: [reviewerId], references: [id])
+
+  committeeId Int?
+  committee   Committee? @relation(fields: [committeeId], references: [id])
+}
+
+// ─── File Upload ─────────────────────────────────────────
+
+model FileUpload {
+  id           Int          @id @default(autoincrement())
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  path         String
+  category     FileCategory @default(MANUSCRIPT)
+
+  // AI extraction results
+  extractedText   String?
+  extractedTitle  String?
+  extractedAuthors String?
+  extractedAbstract String?
+  extractedKeywords String[]
+  ocrConfidence   Float?
+
+  createdAt DateTime @default(now())
+
+  workId Int?
+  work   ScientificWork? @relation(fields: [workId], references: [id], onDelete: SetNull)
+
+  uploaderId Int
+  uploader   User @relation(fields: [uploaderId], references: [id])
+}
+
+// ─── Notification ────────────────────────────────────────
+
+model Notification {
+  id      Int              @id @default(autoincrement())
+  title   String
+  message String
+  type    NotificationType @default(SYSTEM)
+  isRead  Boolean          @default(false)
+  link    String?
+  createdAt DateTime       @default(now())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workId Int?
+  work   ScientificWork? @relation(fields: [workId], references: [id], onDelete: SetNull)
 }

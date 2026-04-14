@@ -1,16 +1,29 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { mainMenuItems, bottomMenuItems, actionButton } from '../config/menuConfig';
 import { GraduationCap } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout, hasRole } = useAuth();
 
   const handleSelect = (path: string | undefined) => {
     if (path) {
       navigate(path);
     }
   };
+
+  const handleBottomClick = (key: string) => {
+    if (key === 'logout') {
+      logout();
+      navigate('/login');
+    }
+  };
+
+  const visibleMenuItems = mainMenuItems.filter(
+    (item) => !item.roles || (user && hasRole(...item.roles))
+  );
 
   return (
     <aside className="sidebar-container glass-slab">
@@ -26,8 +39,8 @@ export const Sidebar = () => {
 
       <nav className="nav-section">
         <ul className="nav-list">
-          {mainMenuItems.map((item) => (
-            <li 
+          {visibleMenuItems.map((item) => (
+            <li
               key={item.key}
               className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
               onClick={() => handleSelect(item.path)}
@@ -50,10 +63,10 @@ export const Sidebar = () => {
       <div className="bottom-section">
         <ul className="nav-list">
           {bottomMenuItems.map((item) => (
-            <li 
+            <li
               key={item.key}
               className="nav-item"
-              onClick={() => handleSelect(item.path)}
+              onClick={() => handleBottomClick(item.key)}
             >
               <item.icon size={20} />
               <span className="nav-name">{item.name}</span>
@@ -73,7 +86,7 @@ export const Sidebar = () => {
           flex-direction: column;
           padding: 2.5rem 1.5rem;
           background: rgba(255, 255, 255, 0.8);
-          border-right: none; /* No-line rule */
+          border-right: none;
           z-index: 100;
         }
 
