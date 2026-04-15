@@ -187,6 +187,50 @@ export class AiService {
   }
 
   /**
+   * Summarize text via Python AI service (Ollama/DeepSeek).
+   */
+  async summarize(text: string, maxWords = 200) {
+    try {
+      const response = await fetch(`${AI_SERVICE_URL}/summarize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, max_words: maxWords }),
+      });
+
+      if (!response.ok) {
+        return { summary: null, error: 'LLM chưa sẵn sàng. Vui lòng kiểm tra Ollama đã chạy chưa.' };
+      }
+
+      const data = await response.json();
+      return { summary: data.summary, engine: data.engine };
+    } catch {
+      return { summary: null, error: 'Không thể kết nối đến dịch vụ AI.' };
+    }
+  }
+
+  /**
+   * Chat with LLM via Python AI service.
+   */
+  async chat(message: string) {
+    try {
+      const response = await fetch(`${AI_SERVICE_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: message }),
+      });
+
+      if (!response.ok) {
+        return { reply: 'Xin lỗi, dịch vụ AI đang không khả dụng. Vui lòng thử lại sau.' };
+      }
+
+      const data = await response.json();
+      return { reply: data.answer || 'Không có phản hồi từ AI.' };
+    } catch {
+      return { reply: 'Xin lỗi, không thể kết nối đến dịch vụ AI. Vui lòng kiểm tra Ollama đã chạy chưa.' };
+    }
+  }
+
+  /**
    * Get presigned URL for a file in MinIO.
    */
   async getFileUrl(objectName: string): Promise<string> {

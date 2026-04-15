@@ -62,7 +62,7 @@ export class LibraryService {
         where,
         include: {
           user: { select: { id: true, name: true, email: true } },
-          publication: { select: { id: true, journalName: true, conferenceName: true, doi: true, publishedDate: true } },
+          publication: { select: { id: true, journalName: true, conferenceName: true, doi: true, issn: true, publishedDate: true } },
         },
         skip,
         take: limit,

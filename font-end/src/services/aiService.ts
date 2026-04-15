@@ -31,4 +31,12 @@ export const aiService = {
     const { data } = await api.get(`/ai/files/${objectName}/url`);
     return data.url as string;
   },
+  async chat(message: string) {
+    const { data } = await api.post('/ai/chat', { message });
+    return data;
+  },
+  async summarize(text: string, maxWords = 200) {
+    const { data } = await api.post('/ai/summarize', { text, maxWords });
+    return data;
+  },
 };

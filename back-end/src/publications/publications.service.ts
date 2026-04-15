@@ -46,7 +46,9 @@ export class PublicationsService {
       },
     });
 
-    // Auto-add to library
+    // Auto-add to library - detect type from journal/conference
+    const docType = updated.conferenceName ? 'CONFERENCE_PAPER' : 'JOURNAL_ARTICLE';
+
     await this.prisma.libraryDocument.create({
       data: {
         title: updated.title,
@@ -54,8 +56,8 @@ export class PublicationsService {
         abstract: updated.abstract,
         keywords: updated.keywords,
         tags: updated.keywords,
-        type: 'JOURNAL_ARTICLE',
-        aiScore: updated.confidence ? updated.confidence * 10 : undefined,
+        type: docType,
+        aiScore: updated.confidence || undefined,
         publicationId: updated.id,
         workId: updated.workId,
         userId,

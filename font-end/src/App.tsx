@@ -13,6 +13,7 @@ import WorkCreate from './pages/works/WorkCreate';
 import AiAnalysis from './pages/ai/AiAnalysis';
 import LibraryPage from './pages/LibraryPage';
 import FinancePage from './pages/FinancePage';
+import ProfilePage from './pages/ProfilePage';
 import { Role } from './types';
 
 function Wrapped({ children }: { children: React.ReactNode }) {
@@ -49,6 +50,9 @@ function App() {
 
       {/* Library */}
       <Route path="/library" element={<Wrapped><LibraryPage /></Wrapped>} />
+
+      {/* Profile */}
+      <Route path="/profile" element={<Wrapped><ProfilePage /></Wrapped>} />
 
       {/* Admin */}
       <Route path="/admin/users" element={
