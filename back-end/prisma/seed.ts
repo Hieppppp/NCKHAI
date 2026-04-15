@@ -136,7 +136,37 @@ async function main() {
     ],
   });
 
-  console.log('Seed completed!', { admin: admin.id, reviewer1: reviewer1.id, reviewer2: reviewer2.id, lecturer: lecturer.id, student: student.id });
+  // ─── Journal Rankings (Danh mục tạp chí) ────────────────
+  const journals = [
+    { name: 'IEEE Transactions on Pattern Analysis and Machine Intelligence', issn: '0162-8828', category: 'Scopus', quartile: 'Q1', impactFactor: 24.314, points: 2.0, publisher: 'IEEE', country: 'USA' },
+    { name: 'Nature Machine Intelligence', issn: '2522-5839', category: 'Scopus', quartile: 'Q1', impactFactor: 25.898, points: 2.0, publisher: 'Springer Nature', country: 'UK' },
+    { name: 'Journal of Machine Learning Research', issn: '1532-4435', category: 'Scopus', quartile: 'Q1', impactFactor: 6.0, points: 2.0, publisher: 'MIT Press', country: 'USA' },
+    { name: 'IEEE Access', issn: '2169-3536', category: 'Scopus', quartile: 'Q2', impactFactor: 3.476, points: 1.5, publisher: 'IEEE', country: 'USA' },
+    { name: 'Applied Sciences', issn: '2076-3417', category: 'Scopus', quartile: 'Q2', impactFactor: 2.838, points: 1.5, publisher: 'MDPI', country: 'Switzerland' },
+    { name: 'Computers & Education', issn: '0360-1315', category: 'Scopus', quartile: 'Q1', impactFactor: 12.0, points: 2.0, publisher: 'Elsevier', country: 'UK' },
+    { name: 'Expert Systems with Applications', issn: '0957-4174', category: 'Scopus', quartile: 'Q1', impactFactor: 8.665, points: 2.0, publisher: 'Elsevier', country: 'UK' },
+    { name: 'Journal of Finance', issn: '0022-1082', category: 'Scopus', quartile: 'Q1', impactFactor: 8.238, points: 2.0, publisher: 'Wiley', country: 'USA' },
+    { name: 'Sustainability', issn: '2071-1050', category: 'Scopus', quartile: 'Q2', impactFactor: 3.889, points: 1.5, publisher: 'MDPI', country: 'Switzerland' },
+    { name: 'Journal of Cleaner Production', issn: '0959-6526', category: 'Scopus', quartile: 'Q1', impactFactor: 11.072, points: 2.0, publisher: 'Elsevier', country: 'UK' },
+    { name: 'Tạp chí Khoa học và Công nghệ Việt Nam', issn: '1859-4794', category: 'HDGSNN', quartile: null, impactFactor: null, points: 1.0, publisher: 'Bộ KH&CN', country: 'Vietnam' },
+    { name: 'Tạp chí Khoa học ĐHQGHN', issn: '0866-8612', category: 'HDGSNN', quartile: null, impactFactor: null, points: 1.0, publisher: 'ĐHQG Hà Nội', country: 'Vietnam' },
+    { name: 'Vietnam Journal of Computer Science', issn: '2196-8888', category: 'Scopus', quartile: 'Q3', impactFactor: 1.2, points: 1.0, publisher: 'Springer', country: 'Vietnam' },
+    { name: 'Tạp chí Công nghệ Thông tin và Truyền thông', issn: '1859-3550', category: 'HDGSNN', quartile: null, impactFactor: null, points: 0.75, publisher: 'Học viện CNBCVT', country: 'Vietnam' },
+    { name: 'Journal of Science and Technology', issn: '2525-2518', category: 'Trong nước', quartile: null, impactFactor: null, points: 0.5, publisher: 'ĐH Đà Nẵng', country: 'Vietnam' },
+  ];
+
+  for (const j of journals) {
+    await prisma.journalRanking.upsert({
+      where: { id: 0 }, // Force create
+      update: {},
+      create: j,
+    }).catch(() => {
+      // If upsert fails, just create
+      return prisma.journalRanking.create({ data: j });
+    });
+  }
+
+  console.log('Seed completed!', { admin: admin.id, reviewer1: reviewer1.id, reviewer2: reviewer2.id, lecturer: lecturer.id, student: student.id, journals: journals.length });
 }
 
 main()

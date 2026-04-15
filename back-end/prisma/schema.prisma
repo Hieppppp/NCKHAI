@@ -115,6 +115,7 @@ model User {
   rewards          Reward[]
   approvedTransactions BudgetTransaction[] @relation("TransactionApprover")
   approvedRewards  Reward[]              @relation("RewardApprover")
+  researchHours    ResearchHours[]
 }
 
 // ─── Scientific Work (Core Entity) ──────────────────────
@@ -405,4 +406,56 @@ model Reward {
 
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+}
+
+// ─── Journal Ranking (Danh mục tạp chí) ────────────────
+
+model JournalRanking {
+  id          Int      @id @default(autoincrement())
+  name        String
+  issn        String?
+  publisher   String?
+  category    String?  // "Scopus", "ISI/WoS", "HĐGSNN", "Trong nước"
+  quartile    String?  // "Q1", "Q2", "Q3", "Q4", "ESCI"
+  impactFactor Float?
+  points      Float    @default(0) // Điểm quy đổi theo HĐGSNN
+  hIndex      Int?
+  country     String?
+  url         String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([issn])
+}
+
+// ─── Research Hours (Giờ chuẩn NCKH) ───────────────────
+
+model ResearchHours {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+
+  academicYear String  // "2024-2025"
+
+  // Điểm từ các nguồn
+  publicationPoints  Float @default(0)  // Từ bài báo
+  projectPoints      Float @default(0)  // Từ đề tài NCKH
+  reviewPoints       Float @default(0)  // Từ phản biện
+  supervisionPoints  Float @default(0)  // Từ hướng dẫn SV
+  otherPoints        Float @default(0)  // Khác
+
+  totalPoints        Float @default(0)
+  requiredPoints     Float @default(50) // Định mức giờ chuẩn
+  status             String @default("CALCULATING") // CALCULATING, SUBMITTED, APPROVED
+
+  note               String?
+  approvedById       Int?
+  approvedAt         DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([userId, academicYear])
 }

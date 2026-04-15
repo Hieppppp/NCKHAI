@@ -13,6 +13,7 @@ import { DashboardModule } from './dashboard/dashboard.module.js';
 import { PublicationsModule } from './publications/publications.module.js';
 import { LibraryModule } from './library/library.module.js';
 import { FinanceModule } from './finance/finance.module.js';
+import { ResearchHoursModule } from './research-hours/research-hours.module.js';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from './auth/guards/roles.guard.js';
 
@@ -29,6 +30,7 @@ import { RolesGuard } from './auth/guards/roles.guard.js';
     PublicationsModule,
     LibraryModule,
     FinanceModule,
+    ResearchHoursModule,
   ],
   controllers: [AppController],
   providers: [
