@@ -90,7 +90,7 @@ export default function LibraryPage() {
 
   // Detail view
   const [detail, setDetail] = useState<LibDoc | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [, setLoadingDetail] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Chat
@@ -1282,11 +1282,11 @@ const libStyles = `
     z-index: 1000;
   }
   .lib-modal-content {
-    width: 580px;
-    max-height: 85vh;
+    width: 620px;
+    max-height: 92vh;
     overflow-y: auto;
-    padding: 2rem;
-    border-radius: 20px;
+    padding: 1.5rem;
+    border-radius: 16px;
     animation: libModalIn 0.25s ease-out;
   }
   @keyframes libModalIn {

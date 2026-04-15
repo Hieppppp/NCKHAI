@@ -860,7 +860,7 @@ const finStyles = `
     backdrop-filter: blur(4px);
   }
   .fin-modal {
-    width: 540px; max-height: 80vh; overflow-y: auto; padding: 2rem;
+    width: 600px; max-height: 92vh; overflow-y: auto; padding: 1.5rem;
     border-radius: 20px; background: white; box-shadow: 0 24px 48px rgba(0,0,0,0.15);
   }
   .fin-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }

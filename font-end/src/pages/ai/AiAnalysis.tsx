@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback } from 'react';
 import {
-  Upload, FileText, Sparkles, Search, AlertTriangle, CheckCircle,
+  Sparkles, Search, AlertTriangle, CheckCircle,
   Loader2, Brain, TrendingUp, Code, FileJson, Eye, Layers,
   ZoomIn, ZoomOut, Copy, Check, FileSearch, MessageCircle,
-  Send, X, BookOpen, BarChart3, FileUp, Type,
+  Send, BookOpen, BarChart3, FileUp, Type,
 } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 
@@ -144,6 +144,10 @@ export default function AiAnalysis() {
     if (!extraction) return [];
     const ext = extraction.extraction || {};
     const anns = bboxLevel === 'word' ? (ext.annotations || []) : (ext.lineAnnotations || []);
+    if (anns.length === 0) return [];
+    // If annotations don't have page field, return all
+    const hasPageField = anns.some((a: Annotation) => a.page != null);
+    if (!hasPageField) return anns;
     return anns.filter((a: Annotation) => a.page === selectedPage);
   };
 
@@ -299,7 +303,7 @@ export default function AiAnalysis() {
                       )}
                     </div>
 
-                    {pageAnnotations.length > 0 ? (
+                    {pageAnnotations.length > 0 && pageAnnotations[0]?.bbox ? (
                       <div className="bbox-canvas-wrap">
                         <div className="bbox-canvas" style={{
                           width: (pageSize.width || 800) * zoom * 0.35,
@@ -321,7 +325,30 @@ export default function AiAnalysis() {
                         </div>
                       </div>
                     ) : (
-                      <div className="empty-bbox"><Layers size={28} /><p>Không có bbox (PDF số - text trích xuất trực tiếp)</p></div>
+                      /* Annotation table fallback for digital PDFs */
+                      <div className="bbox-table-wrap">
+                        <div className="bbox-info-banner">
+                          <Layers size={16} />
+                          <span>{ext.engine === 'pypdf2-text' ? 'PDF số - text trích xuất trực tiếp (không cần OCR scan)' : 'Dữ liệu annotation'}</span>
+                        </div>
+                        {ext.text ? (
+                          <div className="bbox-text-lines">
+                            {ext.text.split('\n').filter((l: string) => l.trim()).slice(0, 80).map((line: string, i: number) => (
+                              <div key={i} className="bbox-line-row">
+                                <span className="bbox-line-num">{i + 1}</span>
+                                <span className="bbox-line-text">{line}</span>
+                              </div>
+                            ))}
+                            {ext.text.split('\n').filter((l: string) => l.trim()).length > 80 && (
+                              <div className="bbox-line-row" style={{ justifyContent: 'center', color: 'var(--on-surface-muted)', fontStyle: 'italic' }}>
+                                ... còn {ext.text.split('\n').filter((l: string) => l.trim()).length - 80} dòng nữa
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="empty-bbox"><Layers size={28} /><p>Không có dữ liệu</p></div>
+                        )}
+                      </div>
                     )}
                     <div className="bbox-legend">
                       <span><span className="dot green" /> Cao (&ge;90%)</span>
@@ -576,6 +603,13 @@ const aiStyles = `
   .bbox-canvas { position: relative; background: white; margin: 0 auto; min-height: 250px; }
   .empty-bbox { text-align: center; padding: 3rem; color: var(--on-surface-muted); }
   .empty-bbox p { font-size: 0.8rem; margin-top: 8px; }
+  .bbox-table-wrap { }
+  .bbox-info-banner { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #eef2ff; border-radius: 8px; margin-bottom: 10px; font-size: 0.8rem; font-weight: 600; color: var(--primary-indigo); }
+  .bbox-text-lines { max-height: 450px; overflow: auto; border: 1px solid var(--surface-variant); border-radius: 8px; background: var(--surface-lowest); }
+  .bbox-line-row { display: flex; gap: 0; border-bottom: 1px solid var(--surface-variant); font-size: 0.75rem; line-height: 1.6; }
+  .bbox-line-row:last-child { border: none; }
+  .bbox-line-num { width: 40px; padding: 4px 8px; text-align: right; color: var(--on-surface-variant); background: var(--surface-low); font-weight: 600; font-size: 0.7rem; flex-shrink: 0; font-family: monospace; }
+  .bbox-line-text { padding: 4px 10px; flex: 1; white-space: pre-wrap; word-break: break-word; }
   .bbox-legend { display: flex; gap: 12px; font-size: 0.7rem; margin-top: 8px; color: var(--on-surface-muted); }
   .bbox-legend span { display: flex; align-items: center; gap: 4px; }
   .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }

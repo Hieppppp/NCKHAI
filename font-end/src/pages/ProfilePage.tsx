@@ -1,47 +1,29 @@
 import { useState, useEffect } from 'react';
 import {
-  User,
-  Mail,
-  Phone,
-  Building2,
-  BookOpen,
-  Award,
-  FileText,
-  ClipboardCheck,
-  Save,
-  Loader2,
-  Shield,
-  Calendar,
-  GraduationCap,
+  User, Mail, Phone, Building2, BookOpen, FileText,
+  ClipboardCheck, Save, Loader2, Shield, Calendar, GraduationCap,
+  Edit3, Check,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/authService';
 import { RoleLabels } from '../types';
 import type { User as UserType } from '../types';
 
+const ROLE_COLORS: Record<string, string> = { ADMIN: '#dc2626', REVIEWER: '#7c3aed', LECTURER: '#2563eb', STUDENT: '#059669' };
+
 export default function ProfilePage() {
-  const { user, login } = useAuth();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    department: '',
-    specialization: '',
-    phone: '',
-  });
+  const [form, setForm] = useState({ name: '', department: '', specialization: '', phone: '' });
 
   useEffect(() => {
     authService.getProfile().then((p) => {
       setProfile(p);
-      setForm({
-        name: p.name || '',
-        department: p.department || '',
-        specialization: p.specialization || '',
-        phone: p.phone || '',
-      });
+      setForm({ name: p.name || '', department: p.department || '', specialization: p.specialization || '', phone: p.phone || '' });
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -54,18 +36,12 @@ export default function ProfilePage() {
       localStorage.setItem('user', JSON.stringify(updated));
       setEditing(false);
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      alert('Cập nhật thất bại');
-    } finally {
-      setSaving(false);
-    }
+      setTimeout(() => setSaved(false), 3000);
+    } catch { alert('Cập nhật thất bại'); }
+    setSaving(false);
   };
 
-  if (loading) {
-    return <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--on-surface-muted)' }}>Đang tải...</div>;
-  }
-
+  if (loading) return <div className="pf-loading"><Loader2 size={36} className="pf-spin" color="var(--primary-indigo)" /></div>;
   const p = profile || user;
   if (!p) return null;
 
@@ -75,297 +51,165 @@ export default function ProfilePage() {
     { icon: ClipboardCheck, label: 'Đánh giá phản biện', value: p._count?.reviews || 0, color: '#0891b2' },
   ];
 
-  const ROLE_COLORS: Record<string, string> = {
-    ADMIN: '#dc2626',
-    REVIEWER: '#7c3aed',
-    LECTURER: '#2563eb',
-    STUDENT: '#059669',
-  };
-
   return (
-    <div className="profile-page">
-      <header className="profile-header-section">
-        <div className="profile-cover" />
-        <div className="profile-header-content">
-          <div className="profile-avatar-large">
-            <span>{(p.name || p.email || 'U')[0].toUpperCase()}</span>
-          </div>
-          <div className="profile-header-info">
+    <div className="pf">
+      {/* Hero */}
+      <section className="pf-hero">
+        <div className="pf-hero-inner">
+          <div className="pf-avatar-lg">{(p.name || p.email || 'U')[0].toUpperCase()}</div>
+          <div className="pf-hero-info">
             <h1>{p.name || 'Chưa cập nhật tên'}</h1>
-            <div className="profile-header-meta">
-              <span className="role-badge" style={{ background: ROLE_COLORS[p.role] || '#4f46e5' }}>
-                <Shield size={12} />
-                {RoleLabels[p.role]}
+            <div className="pf-hero-meta">
+              <span className="pf-role-pill" style={{ background: ROLE_COLORS[p.role] || '#4f46e5' }}>
+                <Shield size={11} /> {RoleLabels[p.role]}
               </span>
-              {p.department && (
-                <span className="meta-tag">
-                  <Building2 size={14} />
-                  {p.department}
-                </span>
-              )}
-              <span className="meta-tag">
-                <Calendar size={14} />
-                Tham gia: {p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN') : '—'}
-              </span>
+              {p.department && <span className="pf-meta-tag"><Building2 size={13} /> {p.department}</span>}
+              <span className="pf-meta-tag"><Calendar size={13} /> Tham gia: {p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN') : '—'}</span>
             </div>
           </div>
-          <button
-            className={editing ? 'btn-cancel' : 'btn-edit-profile'}
-            onClick={() => setEditing(!editing)}
-          >
-            {editing ? 'Hủy' : 'Chỉnh sửa hồ sơ'}
+          <button className={`pf-hero-btn ${editing ? 'cancel' : ''}`} onClick={() => setEditing(!editing)}>
+            {editing ? 'Hủy' : <><Edit3 size={15} /> Chỉnh sửa</>}
           </button>
         </div>
-      </header>
+      </section>
 
-      {/* Stats Cards */}
-      <div className="stats-row">
-        {stats.map((s) => (
-          <div key={s.label} className="stat-item surface-card">
-            <div className="stat-icon-wrap" style={{ background: `${s.color}15` }}>
-              <s.icon size={22} color={s.color} />
-            </div>
-            <div className="stat-detail">
-              <span className="stat-number">{s.value}</span>
-              <span className="stat-desc">{s.label}</span>
-            </div>
+      {/* Stats */}
+      <section className="pf-stats">
+        {stats.map(s => (
+          <div key={s.label} className="surface-card pf-stat">
+            <div className="pf-stat-icon" style={{ background: `${s.color}12`, color: s.color }}><s.icon size={22} /></div>
+            <div><span className="pf-stat-val" style={{ color: s.color }}>{s.value}</span><span className="pf-stat-label">{s.label}</span></div>
           </div>
         ))}
-      </div>
+      </section>
 
-      <div className="profile-body">
-        {/* Info Card */}
-        <section className="surface-card info-card">
-          <h3><User size={18} /> Thông tin cá nhân</h3>
+      {saved && <div className="pf-success"><Check size={16} /> Cập nhật hồ sơ thành công!</div>}
 
-          {saved && (
-            <div className="success-banner">
-              <Award size={16} />
-              Cập nhật hồ sơ thành công!
-            </div>
-          )}
-
-          <div className="info-grid">
-            <div className="info-field">
-              <label><User size={14} /> Họ và tên</label>
+      <div className="pf-body">
+        {/* Info */}
+        <section className="surface-card pf-card">
+          <div className="pf-card-head"><User size={18} /> Thông tin cá nhân</div>
+          <div className="pf-grid">
+            <PfField icon={User} label="Họ và tên" editing={editing} value={form.name} onChange={v => setForm({ ...form, name: v })} display={p.name} />
+            <PfField icon={Mail} label="Email" editing={false} value="" onChange={() => {}} display={p.email} />
+            <PfField icon={Phone} label="Số điện thoại" editing={editing} value={form.phone} onChange={v => setForm({ ...form, phone: v })} placeholder="Nhập số điện thoại" display={p.phone} />
+            <PfField icon={Building2} label="Khoa / Phòng ban" editing={editing} value={form.department} onChange={v => setForm({ ...form, department: v })} placeholder="VD: Khoa Công nghệ thông tin" display={p.department} />
+            <div className="pf-field pf-full">
+              <label><GraduationCap size={13} /> Chuyên ngành / Lĩnh vực nghiên cứu</label>
               {editing ? (
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nhập họ và tên" />
+                <input value={form.specialization} onChange={e => setForm({ ...form, specialization: e.target.value })} placeholder="VD: Trí tuệ nhân tạo, Xử lý ngôn ngữ tự nhiên" />
               ) : (
-                <p>{p.name || <span className="empty-value">Chưa cập nhật</span>}</p>
-              )}
-            </div>
-
-            <div className="info-field">
-              <label><Mail size={14} /> Email</label>
-              <p>{p.email}</p>
-            </div>
-
-            <div className="info-field">
-              <label><Phone size={14} /> Số điện thoại</label>
-              {editing ? (
-                <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Nhập số điện thoại" />
-              ) : (
-                <p>{p.phone || <span className="empty-value">Chưa cập nhật</span>}</p>
-              )}
-            </div>
-
-            <div className="info-field">
-              <label><Building2 size={14} /> Khoa / Phòng ban</label>
-              {editing ? (
-                <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="VD: Khoa Công nghệ thông tin" />
-              ) : (
-                <p>{p.department || <span className="empty-value">Chưa cập nhật</span>}</p>
-              )}
-            </div>
-
-            <div className="info-field full-width">
-              <label><GraduationCap size={14} /> Chuyên ngành / Lĩnh vực nghiên cứu</label>
-              {editing ? (
-                <input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} placeholder="VD: Trí tuệ nhân tạo, Xử lý ngôn ngữ tự nhiên" />
-              ) : (
-                <p>{p.specialization || <span className="empty-value">Chưa cập nhật</span>}</p>
+                <p className={p.specialization ? '' : 'pf-empty'}>{p.specialization || 'Chưa cập nhật'}</p>
               )}
             </div>
           </div>
-
           {editing && (
-            <div className="edit-actions">
-              <button className="btn-save" onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
+            <div className="pf-save-row">
+              <button className="pf-save-btn" onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 size={15} className="pf-spin" /> : <Save size={15} />}
                 {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
               </button>
             </div>
           )}
         </section>
 
-        {/* Account Card */}
-        <section className="surface-card account-card">
-          <h3><Shield size={18} /> Tài khoản & Bảo mật</h3>
-          <div className="account-items">
-            <div className="account-row">
-              <span className="account-label">Vai trò hệ thống</span>
-              <span className="role-badge" style={{ background: ROLE_COLORS[p.role] || '#4f46e5' }}>
-                {RoleLabels[p.role]}
-              </span>
+        {/* Account */}
+        <section className="surface-card pf-card">
+          <div className="pf-card-head"><Shield size={18} /> Tài khoản & Bảo mật</div>
+          <div className="pf-account">
+            <div className="pf-acc-row">
+              <span>Vai trò hệ thống</span>
+              <span className="pf-role-pill" style={{ background: ROLE_COLORS[p.role] || '#4f46e5' }}>{RoleLabels[p.role]}</span>
             </div>
-            <div className="account-row">
-              <span className="account-label">Trạng thái tài khoản</span>
-              <span className={`status-badge ${p.isActive !== false ? 'active' : 'inactive'}`}>
-                {p.isActive !== false ? 'Đang hoạt động' : 'Đã vô hiệu hóa'}
-              </span>
+            <div className="pf-acc-row">
+              <span>Trạng thái</span>
+              <span className={`pf-status ${p.isActive !== false ? 'active' : 'inactive'}`}>{p.isActive !== false ? 'Đang hoạt động' : 'Đã vô hiệu hóa'}</span>
             </div>
-            <div className="account-row">
-              <span className="account-label">Ngày tạo tài khoản</span>
-              <span>{p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+            <div className="pf-acc-row">
+              <span>Ngày tạo tài khoản</span>
+              <strong>{p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</strong>
+            </div>
+            <div className="pf-acc-row">
+              <span>Email đăng nhập</span>
+              <strong>{p.email}</strong>
             </div>
           </div>
         </section>
       </div>
 
       <style>{`
-        .profile-page { display: flex; flex-direction: column; gap: 2rem; padding-bottom: 3rem; }
+        .pf{display:flex;flex-direction:column;gap:1.5rem;padding-bottom:3rem}
+        .pf-loading{display:flex;justify-content:center;padding:80px}
 
-        .profile-cover {
-          height: 160px;
-          background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 50%, #7c3aed 100%);
-          border-radius: 20px 20px 0 0;
-        }
+        .pf-hero{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 100%);border-radius:20px;padding:2.5rem;color:#fff}
+        .pf-hero-inner{display:flex;align-items:center;gap:1.5rem}
+        .pf-avatar-lg{width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;border:3px solid rgba(255,255,255,.3);flex-shrink:0}
+        .pf-hero-info{flex:1}
+        .pf-hero-info h1{font-size:1.5rem;font-weight:800;margin-bottom:.5rem;color:#fff}
+        .pf-hero-meta{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+        .pf-role-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;color:#fff;font-size:.7rem;font-weight:700}
+        .pf-meta-tag{display:flex;align-items:center;gap:4px;font-size:.8rem;opacity:.8}
+        .pf-hero-btn{background:#fff;color:#1e1b4b;border:none;padding:10px 20px;border-radius:10px;font-weight:700;font-size:.8rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
+        .pf-hero-btn.cancel{background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.3)}
 
-        .profile-header-content {
-          display: flex; align-items: flex-end; gap: 1.5rem;
-          margin-top: -48px; padding: 0 2rem 1.5rem;
-        }
+        .pf-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+        .pf-stat{display:flex;align-items:center;gap:1rem}
+        .pf-stat-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .pf-stat-val{font-size:1.75rem;font-weight:800;display:block;line-height:1}
+        .pf-stat-label{font-size:.8rem;color:var(--on-surface-muted)}
 
-        .profile-avatar-large {
-          width: 96px; height: 96px; border-radius: 50%;
-          background: var(--signature-gradient);
-          display: flex; align-items: center; justify-content: center;
-          border: 4px solid white;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-          flex-shrink: 0;
-        }
+        .pf-success{display:flex;align-items:center;gap:8px;background:#d1fae5;color:#065f46;padding:12px 16px;border-radius:12px;font-weight:600;font-size:.875rem}
 
-        .profile-avatar-large span {
-          color: white; font-size: 2.25rem; font-weight: 800;
-        }
+        .pf-body{display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start}
+        .pf-card{padding:2rem}
+        .pf-card-head{display:flex;align-items:center;gap:8px;font-size:.9375rem;font-weight:700;margin-bottom:1.5rem}
 
-        .profile-header-info { flex: 1; }
-        .profile-header-info h1 { font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+        .pf-field{display:flex;flex-direction:column;gap:.375rem}
+        .pf-field.pf-full{grid-column:1/-1}
+        .pf-field label{font-size:.7rem;font-weight:800;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;gap:4px}
+        .pf-field p{font-size:.875rem;padding:10px 14px;background:var(--surface-low);border-radius:10px;min-height:42px;display:flex;align-items:center}
+        .pf-field p.pf-empty{color:var(--on-surface-muted);font-style:italic}
+        .pf-field input{padding:10px 14px;border:2px solid var(--surface-variant);border-radius:10px;font-size:.875rem;font-family:inherit;outline:none;background:var(--surface-lowest);transition:border-color .2s}
+        .pf-field input:focus{border-color:var(--primary-indigo)}
 
-        .profile-header-meta { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .pf-save-row{margin-top:1.5rem;display:flex;justify-content:flex-end}
+        .pf-save-btn{background:var(--signature-gradient);color:#fff;border:none;padding:10px 24px;border-radius:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:.85rem}
+        .pf-save-btn:disabled{opacity:.6;cursor:not-allowed}
 
-        .role-badge {
-          display: inline-flex; align-items: center; gap: 0.375rem;
-          padding: 0.25rem 0.75rem; border-radius: 100px;
-          color: white; font-size: 0.75rem; font-weight: 700;
-        }
+        .pf-account{display:flex;flex-direction:column;gap:.75rem}
+        .pf-acc-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--surface-low);border-radius:10px;font-size:.8125rem}
+        .pf-acc-row span:first-child{color:var(--on-surface-muted)}
+        .pf-acc-row strong{font-weight:600;font-size:.8rem}
+        .pf-status{padding:3px 10px;border-radius:100px;font-size:.7rem;font-weight:700}
+        .pf-status.active{background:#d1fae5;color:#065f46}
+        .pf-status.inactive{background:#fee2e2;color:#991b1b}
 
-        .meta-tag {
-          display: flex; align-items: center; gap: 0.375rem;
-          font-size: 0.8125rem; color: var(--on-surface-muted); font-weight: 500;
-        }
+        .pf-spin{animation:pf-spin 1s linear infinite}
+        @keyframes pf-spin{to{transform:rotate(360deg)}}
 
-        .btn-edit-profile {
-          background: var(--primary-indigo); color: white; border: none;
-          padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 700;
-          cursor: pointer; font-size: 0.875rem; white-space: nowrap;
-        }
-
-        .btn-cancel {
-          background: white; color: var(--on-surface); border: 1px solid var(--surface-variant);
-          padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 700;
-          cursor: pointer; font-size: 0.875rem; white-space: nowrap;
-        }
-
-        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
-
-        .stat-item {
-          padding: 1.5rem; display: flex; align-items: center; gap: 1.25rem;
-        }
-
-        .stat-icon-wrap { padding: 0.875rem; border-radius: 14px; }
-        .stat-number { font-size: 1.75rem; font-weight: 800; display: block; }
-        .stat-desc { font-size: 0.8125rem; color: var(--on-surface-muted); font-weight: 500; }
-
-        .profile-body { display: grid; grid-template-columns: 1fr 360px; gap: 2rem; align-items: start; }
-
-        .info-card, .account-card { padding: 2rem; }
-        .info-card h3, .account-card h3 {
-          display: flex; align-items: center; gap: 0.5rem;
-          font-size: 1.0625rem; font-weight: 700; margin-bottom: 1.5rem;
-        }
-
-        .success-banner {
-          display: flex; align-items: center; gap: 0.5rem;
-          background: #d1fae5; color: #065f46; padding: 0.75rem 1rem;
-          border-radius: 10px; font-weight: 600; font-size: 0.875rem; margin-bottom: 1.5rem;
-        }
-
-        .info-grid {
-          display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
-        }
-
-        .info-field { display: flex; flex-direction: column; gap: 0.5rem; }
-        .info-field.full-width { grid-column: 1 / -1; }
-
-        .info-field label {
-          font-size: 0.75rem; font-weight: 700; color: var(--on-surface-muted);
-          text-transform: uppercase; letter-spacing: 0.03em;
-          display: flex; align-items: center; gap: 0.375rem;
-        }
-
-        .info-field p {
-          font-size: 0.9375rem; font-weight: 500;
-          padding: 0.75rem 1rem; background: var(--surface-low);
-          border-radius: 10px; min-height: 44px; display: flex; align-items: center;
-        }
-
-        .info-field input {
-          padding: 0.75rem 1rem; border: 2px solid var(--surface-variant);
-          border-radius: 10px; font-size: 0.9375rem; font-family: inherit;
-          outline: none; transition: border-color 0.2s; background: var(--surface-lowest);
-        }
-
-        .info-field input:focus { border-color: var(--primary-indigo); }
-
-        .empty-value { color: var(--on-surface-muted); font-style: italic; }
-
-        .edit-actions { margin-top: 1.5rem; display: flex; justify-content: flex-end; }
-
-        .btn-save {
-          background: var(--primary-indigo); color: white; border: none;
-          padding: 0.75rem 2rem; border-radius: 12px; font-weight: 700;
-          cursor: pointer; display: flex; align-items: center; gap: 0.5rem;
-          font-size: 0.875rem;
-        }
-
-        .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
-
-        .account-items { display: flex; flex-direction: column; gap: 1rem; }
-
-        .account-row {
-          display: flex; justify-content: space-between; align-items: center;
-          padding: 1rem; background: var(--surface-low); border-radius: 12px;
-        }
-
-        .account-label { font-size: 0.875rem; color: var(--on-surface-muted); font-weight: 500; }
-
-        .status-badge {
-          padding: 0.25rem 0.75rem; border-radius: 100px;
-          font-size: 0.75rem; font-weight: 700;
-        }
-
-        .status-badge.active { background: #d1fae5; color: #065f46; }
-        .status-badge.inactive { background: #fee2e2; color: #991b1b; }
-
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        @media (max-width: 1024px) {
-          .profile-body { grid-template-columns: 1fr; }
-          .stats-row { grid-template-columns: 1fr; }
+        @media(max-width:1024px){
+          .pf-body{grid-template-columns:1fr}
+          .pf-stats{grid-template-columns:1fr}
+          .pf-hero-inner{flex-direction:column;text-align:center}
+          .pf-hero-meta{justify-content:center}
         }
       `}</style>
+    </div>
+  );
+}
+
+function PfField({ icon: Icon, label, editing, value, onChange, display, placeholder }: {
+  icon: typeof User; label: string; editing: boolean; value: string; onChange: (v: string) => void; display?: string | null; placeholder?: string;
+}) {
+  return (
+    <div className="pf-field">
+      <label><Icon size={13} /> {label}</label>
+      {editing ? (
+        <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
+      ) : (
+        <p className={display ? '' : 'pf-empty'}>{display || 'Chưa cập nhật'}</p>
+      )}
     </div>
   );
 }

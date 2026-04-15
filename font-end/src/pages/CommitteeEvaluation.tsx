@@ -4,9 +4,7 @@ import {
   Send,
   Sparkles,
   ShieldCheck,
-  Save,
   PenTool,
-  ChevronRight,
   Plus,
   Users,
   Calendar,
@@ -769,7 +767,7 @@ const ceStyles = `
     backdrop-filter: blur(4px); display: flex; align-items: center;
     justify-content: center; z-index: 1000;
   }
-  .ce-modal { width: 580px; max-height: 85vh; overflow-y: auto; padding: 2rem !important; border-radius: 20px !important; }
+  .ce-modal { width: 620px; max-height: 92vh; overflow-y: auto; padding: 1.5rem !important; border-radius: 16px !important; }
   .ce-modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
   .ce-modal-header h2 { font-size: 1.25rem; font-weight: 800; }
   .ce-modal-sub { font-size: 0.8125rem; color: var(--on-surface-muted); margin-top: 2px; }
