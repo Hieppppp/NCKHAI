@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../components/common/Toast';
 import { Role, RoleLabels } from '../../types';
 import type { User, UserStats, PaginatedResponse } from '../../types';
 
@@ -25,6 +26,7 @@ const RoleColors: Record<Role, string> = {
 
 export default function UserManagement() {
   const { user: currentUser } = useAuth();
+  const { confirm: showConfirm } = useToast();
   const [data, setData] = useState<PaginatedResponse<User> | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [search, setSearch] = useState('');
@@ -73,7 +75,7 @@ export default function UserManagement() {
   }
 
   async function handleDelete(user: User) {
-    if (!confirm(`Bạn có chắc muốn xóa người dùng "${user.name || user.email}"?`)) return;
+    showConfirm('Xóa người dùng', `Bạn có chắc muốn xóa "${user.name || user.email}"? Thao tác không thể hoàn tác.`, async () => {
     try {
       await userService.remove(user.id);
       setFeedback({ type: 'success', message: `Đã xóa ${user.name || user.email}` });
@@ -83,6 +85,7 @@ export default function UserManagement() {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setFeedback({ type: 'error', message: msg || 'Không thể xóa người dùng' });
     }
+    }, { confirmLabel: 'Xóa', danger: true });
   }
 
   async function handleSaveRole() {

@@ -28,6 +28,7 @@ import {
 import { aiService } from '../services/aiService';
 import { publicationService } from '../services/publicationService';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../components/common/Toast';
 import { Role } from '../types';
 
 interface Publication {
@@ -63,6 +64,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 export const Publications = () => {
   const { user, hasRole } = useAuth();
   const isAdmin = hasRole(Role.ADMIN);
+  const { error: showError, success: showSuccess, confirm: showConfirm } = useToast();
 
   // View state
   const [view, setView] = useState<ViewMode>('list');
@@ -133,7 +135,7 @@ export const Publications = () => {
       };
       setFormData(fd);
     } catch {
-      alert('Lỗi xử lý file. Vui lòng thử lại.');
+      showError('Lỗi xử lý file. Vui lòng thử lại.');
     } finally {
       setIsProcessing(false);
     }
@@ -170,17 +172,19 @@ export const Publications = () => {
       await publicationService.confirm(pub.id);
       setSavedId(pub.id);
       loadPubs();
-    } catch { alert('Lỗi lưu publication.'); }
+    } catch { showError('Lỗi lưu công bố. Vui lòng thử lại.'); }
     setIsSaving(false);
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa công bố này?')) return;
+    showConfirm('Xóa công bố', 'Bạn có chắc chắn muốn xóa công bố này? Thao tác không thể hoàn tác.', async () => {
     try {
       await publicationService.remove(id);
       if (selected?.id === id) { setSelected(null); setView('list'); }
+      showSuccess('Đã xóa công bố');
       loadPubs();
-    } catch { alert('Xóa thất bại'); }
+    } catch { showError('Xóa thất bại'); }
+    }, { confirmLabel: 'Xóa', danger: true });
   };
 
   const handleUpdate = async () => {
@@ -191,7 +195,7 @@ export const Publications = () => {
       setView('list');
       setSelected(null);
       loadPubs();
-    } catch { alert('Cập nhật thất bại'); }
+    } catch { showError('Cập nhật thất bại'); }
     setIsSaving(false);
   };
 

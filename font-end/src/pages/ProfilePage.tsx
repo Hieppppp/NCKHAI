@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/authService';
+import { useToast } from '../components/common/Toast';
 import { RoleLabels } from '../types';
 import type { User as UserType } from '../types';
 
@@ -13,6 +14,7 @@ const ROLE_COLORS: Record<string, string> = { ADMIN: '#dc2626', REVIEWER: '#7c3a
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const { error: showError, success: showSuccess } = useToast();
   const [profile, setProfile] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -36,8 +38,9 @@ export default function ProfilePage() {
       localStorage.setItem('user', JSON.stringify(updated));
       setEditing(false);
       setSaved(true);
+      showSuccess('Cập nhật hồ sơ thành công');
       setTimeout(() => setSaved(false), 3000);
-    } catch { alert('Cập nhật thất bại'); }
+    } catch { showError('Cập nhật thất bại'); }
     setSaving(false);
   };
 

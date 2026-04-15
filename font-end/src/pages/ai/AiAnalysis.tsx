@@ -6,6 +6,7 @@ import {
   Send, BookOpen, BarChart3, FileUp, Type,
 } from 'lucide-react';
 import { aiService } from '../../services/aiService';
+import { useToast } from '../../components/common/Toast';
 
 type ViewMode = 'visual' | 'json' | 'markdown' | 'text';
 type Tab = 'ocr' | 'plagiarism' | 'trends' | 'chat';
@@ -16,6 +17,7 @@ interface Annotation {
 }
 
 export default function AiAnalysis() {
+  const { error: showError } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<Tab>('ocr');
 
@@ -59,7 +61,7 @@ export default function AiAnalysis() {
       setExtraction(result);
       if (result.extraction?.text) setPlagiarismText(result.extraction.text.substring(0, 2000));
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Upload thất bại');
+      showError(err.response?.data?.message || 'Upload thất bại');
     } finally { setUploading(false); }
   }
 

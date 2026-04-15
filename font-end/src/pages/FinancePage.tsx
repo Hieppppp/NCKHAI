@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
   DollarSign, TrendingUp, Award, Briefcase, FileText, Banknote, Medal, ScrollText,
-  ChevronRight, ArrowUpRight, Plus, Loader2, CheckCircle, XCircle, Clock, Shield,
+  ChevronRight, ArrowUpRight, Plus, Loader2, CheckCircle, XCircle, Clock,
 } from 'lucide-react';
 import { Modal } from '../components/common/Modal';
 import { financeService } from '../services/financeService';
 import { workService } from '../services/workService';
 import { userService } from '../services/userService';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../components/common/Toast';
 import { Role } from '../types';
 
 interface Stats { totalBudget: number; totalDisbursed: number; activeProjects: number; totalRewards: number; byDepartment: { department: string | null; _sum: { totalAmount: number; disbursedAmount: number } }[]; }
@@ -29,6 +30,7 @@ function formatVND(n: number): string {
 export default function FinancePage() {
   const { hasRole } = useAuth();
   const isAdmin = hasRole(Role.ADMIN);
+  const { error: showError, success: showSuccess } = useToast();
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -74,11 +76,11 @@ export default function FinancePage() {
     } catch { /* ignore */ }
   };
 
-  const handleCreateBudget = async () => { setSubmitting(true); try { await financeService.createBudget({ name: budgetForm.name, totalAmount: +budgetForm.totalAmount, fiscalYear: +budgetForm.fiscalYear, department: budgetForm.department || undefined }); setShowBudgetModal(false); setBudgetForm({ name: '', totalAmount: '', fiscalYear: new Date().getFullYear().toString(), department: '' }); loadData(); } catch (e: any) { alert(e.response?.data?.message || 'Thất bại'); } setSubmitting(false); };
-  const handleCreateTx = async () => { setSubmitting(true); try { await financeService.createTransaction({ amount: +txForm.amount, type: txForm.type, description: txForm.description || undefined, budgetId: +txForm.budgetId, workId: txForm.workId ? +txForm.workId : undefined }); setShowTxModal(false); setTxForm({ amount: '', type: 'DISBURSEMENT', description: '', budgetId: '', workId: '' }); loadData(); } catch (e: any) { alert(e.response?.data?.message || 'Thất bại'); } setSubmitting(false); };
-  const handleCreateReward = async () => { setSubmitting(true); try { await financeService.createReward({ title: rewardForm.title, type: rewardForm.type, amount: rewardForm.amount ? +rewardForm.amount : undefined, period: rewardForm.period || undefined, userId: +rewardForm.userId, workId: rewardForm.workId ? +rewardForm.workId : undefined }); setShowRewardModal(false); setRewardForm({ title: '', type: 'CASH', amount: '', period: '', userId: '', workId: '' }); loadData(); } catch (e: any) { alert(e.response?.data?.message || 'Thất bại'); } setSubmitting(false); };
-  const updateTxStatus = async (id: number, status: string) => { try { await financeService.updateTransactionStatus(id, status); loadData(); } catch { alert('Thất bại'); } };
-  const updateRewardStatus = async (id: number, status: string) => { try { await financeService.updateRewardStatus(id, status); loadData(); } catch { alert('Thất bại'); } };
+  const handleCreateBudget = async () => { setSubmitting(true); try { await financeService.createBudget({ name: budgetForm.name, totalAmount: +budgetForm.totalAmount, fiscalYear: +budgetForm.fiscalYear, department: budgetForm.department || undefined }); setShowBudgetModal(false); setBudgetForm({ name: '', totalAmount: '', fiscalYear: new Date().getFullYear().toString(), department: '' }); showSuccess('Tạo ngân sách thành công'); loadData(); } catch (e: any) { showError(e.response?.data?.message || 'Thao tác thất bại'); } setSubmitting(false); };
+  const handleCreateTx = async () => { setSubmitting(true); try { await financeService.createTransaction({ amount: +txForm.amount, type: txForm.type, description: txForm.description || undefined, budgetId: +txForm.budgetId, workId: txForm.workId ? +txForm.workId : undefined }); setShowTxModal(false); setTxForm({ amount: '', type: 'DISBURSEMENT', description: '', budgetId: '', workId: '' }); loadData(); } catch (e: any) { showError(e.response?.data?.message || 'Thao tác thất bại'); } setSubmitting(false); };
+  const handleCreateReward = async () => { setSubmitting(true); try { await financeService.createReward({ title: rewardForm.title, type: rewardForm.type, amount: rewardForm.amount ? +rewardForm.amount : undefined, period: rewardForm.period || undefined, userId: +rewardForm.userId, workId: rewardForm.workId ? +rewardForm.workId : undefined }); setShowRewardModal(false); setRewardForm({ title: '', type: 'CASH', amount: '', period: '', userId: '', workId: '' }); loadData(); } catch (e: any) { showError(e.response?.data?.message || 'Thao tác thất bại'); } setSubmitting(false); };
+  const updateTxStatus = async (id: number, status: string) => { try { await financeService.updateTransactionStatus(id, status); loadData(); } catch { showError('Thao tác thất bại'); } };
+  const updateRewardStatus = async (id: number, status: string) => { try { await financeService.updateRewardStatus(id, status); loadData(); } catch { showError('Thao tác thất bại'); } };
 
   if (loading) return <div className="fin-loading"><Loader2 size={36} className="fin-spin" color="var(--primary-indigo)" /></div>;
 

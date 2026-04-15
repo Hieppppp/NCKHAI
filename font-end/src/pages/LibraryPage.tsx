@@ -8,6 +8,7 @@ import { Modal } from '../components/common/Modal';
 import { libraryService } from '../services/libraryService';
 import { aiService } from '../services/aiService';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../components/common/Toast';
 import { Role } from '../types';
 
 interface LibDoc {
@@ -27,6 +28,7 @@ const LEVEL_COLORS: Record<string, string> = { UNIVERSITY: '#3b82f6', MINISTRY: 
 export default function LibraryPage() {
   const { hasRole } = useAuth();
   const isLecturerOrAdmin = hasRole(Role.ADMIN, Role.LECTURER);
+  const { error: showError, success: showSuccess, warning: showWarning } = useToast();
 
   const [docs, setDocs] = useState<LibDoc[]>([]);
   const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
@@ -80,11 +82,11 @@ export default function LibraryPage() {
 
   const handleDownload = async (doc: LibDoc) => {
     const filePath = doc.publication?.file?.path;
-    if (!filePath) { alert('Tài liệu này chưa có file đính kèm'); return; }
+    if (!filePath) { showWarning('Tài liệu này chưa có file đính kèm'); return; }
     try {
       const url = await aiService.getFileUrl(filePath.replace('minio://', ''));
       window.open(url, '_blank');
-    } catch { alert('Không thể tải file'); }
+    } catch { showError('Không thể tải file'); }
   };
 
   const handleCopyBib = (doc: LibDoc) => {
@@ -118,8 +120,9 @@ export default function LibraryPage() {
       });
       setShowCreate(false);
       setCreateForm({ title: '', authors: '', abstract: '', keywords: '', tags: '', type: 'JOURNAL_ARTICLE', level: 'UNIVERSITY' });
+      showSuccess('Thêm tài liệu thành công');
       fetchDocs();
-    } catch (err: any) { alert(err.response?.data?.message || 'Tạo tài liệu thất bại'); }
+    } catch (err: any) { showError(err.response?.data?.message || 'Tạo tài liệu thất bại'); }
     setSubmitting(false);
   };
 

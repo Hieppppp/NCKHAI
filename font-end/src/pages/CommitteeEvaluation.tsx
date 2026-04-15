@@ -10,6 +10,7 @@ import { workService } from '../services/workService';
 import { userService } from '../services/userService';
 import { aiService } from '../services/aiService';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../components/common/Toast';
 import { Role } from '../types';
 
 interface Committee {
@@ -22,6 +23,7 @@ interface Committee {
 
 export const CommitteeEvaluation = () => {
   const { user, hasRole } = useAuth();
+  const { error: showError } = useToast();
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Committee | null>(null);
@@ -66,7 +68,7 @@ export const CommitteeEvaluation = () => {
     try {
       await committeeService.create({ name: createForm.name, description: createForm.description, workId: +createForm.workId, meetingDate: createForm.meetingDate || undefined, location: createForm.location || undefined, members: createForm.members.filter(m => m.userId).map(m => ({ userId: +m.userId, role: m.role })) });
       setShowCreate(false); setCreateForm({ name: '', description: '', workId: '', meetingDate: '', location: '', members: [{ userId: '', role: 'reviewer' }] }); loadCommittees();
-    } catch (e: any) { alert(e.response?.data?.message || 'Tạo hội đồng thất bại'); }
+    } catch (e: any) { showError(e.response?.data?.message || 'Tạo hội đồng thất bại'); }
     setSubmitting(false);
   };
 
@@ -76,7 +78,7 @@ export const CommitteeEvaluation = () => {
     try {
       await committeeService.submitReview({ workId: selected.work.id, committeeId: selected.id, innovationScore: scores.innovation, feasibilityScore: scores.feasibility, impactScore: scores.impact, comment, recommendation });
       setSubmitSuccess(true); loadDetail(selected.id);
-    } catch (e: any) { alert(e.response?.data?.message || 'Gửi đánh giá thất bại'); }
+    } catch (e: any) { showError(e.response?.data?.message || 'Gửi đánh giá thất bại'); }
     setSubmitting(false);
   };
 
