@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -25,5 +25,13 @@ export class AuthController {
   @Get('profile')
   async getProfile(@CurrentUser('id') userId: number) {
     return this.authService.getProfile(userId);
+  }
+
+  @Patch('profile')
+  async updateProfile(
+    @CurrentUser('id') userId: number,
+    @Body() dto: { name?: string; department?: string; specialization?: string; phone?: string },
+  ) {
+    return this.authService.updateProfile(userId, dto);
   }
 }

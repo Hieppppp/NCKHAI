@@ -17,9 +17,17 @@ export interface User {
   email: string;
   name: string | null;
   role: Role;
+  department?: string | null;
+  specialization?: string | null;
+  phone?: string | null;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  _count?: {
+    scientificWorks: number;
+    publications: number;
+    reviews: number;
+  };
 }
 
 export interface AuthResponse {

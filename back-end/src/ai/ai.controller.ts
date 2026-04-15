@@ -64,8 +64,15 @@ export class AiController {
 
     return {
       file: { id: record.id, filename: file.originalname, size: file.size, objectName: result.file.objectName },
-      extraction: result.extraction,
-      ocr: { confidence: result.ocr?.confidence, textLength: result.ocr?.fullTextLength, note: result.ocr?.note },
+      extraction: {
+        ...result.extraction,
+        text: result.ocr?.text || '',
+        confidence: result.ocr?.confidence,
+        engine: result.ocr?.engine,
+        annotations: result.annotations || [],
+        lineAnnotations: result.lineAnnotations || [],
+        pages: result.pages || [],
+      },
       processingTime: result.processingTime,
     };
   }
@@ -95,6 +102,22 @@ export class AiController {
   async extractKeywords(@Body('text') text: string) {
     if (!text) throw new BadRequestException('Thiếu text');
     return this.aiService.extractKeywords(text, 15);
+  }
+
+  @Post('chat')
+  async chat(@Body('message') message: string) {
+    if (!message || message.trim().length < 2) {
+      throw new BadRequestException('Tin nhắn quá ngắn');
+    }
+    return this.aiService.chat(message);
+  }
+
+  @Post('summarize')
+  async summarize(@Body('text') text: string, @Body('maxWords') maxWords?: number) {
+    if (!text || text.trim().length < 20) {
+      throw new BadRequestException('Văn bản phải có ít nhất 20 ký tự');
+    }
+    return this.aiService.summarize(text, maxWords || 200);
   }
 
   @Get('files/:objectName/url')

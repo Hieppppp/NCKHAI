@@ -86,8 +86,45 @@ export class AuthService {
         email: true,
         name: true,
         role: true,
+        department: true,
+        specialization: true,
+        phone: true,
         isActive: true,
         createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            scientificWorks: true,
+            publications: true,
+            reviews: true,
+          },
+        },
+      },
+    });
+
+    return user;
+  }
+
+  async updateProfile(userId: number, dto: { name?: string; department?: string; specialization?: string; phone?: string }) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: dto.name,
+        department: dto.department,
+        specialization: dto.specialization,
+        phone: dto.phone,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        department: true,
+        specialization: true,
+        phone: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 

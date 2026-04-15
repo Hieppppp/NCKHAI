@@ -94,7 +94,7 @@ export const Header = () => {
 
         <button className="icon-btn"><HelpCircle size={20} /></button>
 
-        <div className="user-profile">
+        <div className="user-profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
           <div className="user-info">
             <span className="user-name">{user?.name || user?.email || 'Người dùng'}</span>
             <span className="user-role">{user ? RoleLabels[user.role] : ''}</span>
