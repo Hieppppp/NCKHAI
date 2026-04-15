@@ -166,7 +166,37 @@ async function main() {
     });
   }
 
-  console.log('Seed completed!', { admin: admin.id, reviewer1: reviewer1.id, reviewer2: reviewer2.id, lecturer: lecturer.id, student: student.id, journals: journals.length });
+  // ─── System Configs ──────────────────────────────────────
+  const configs = [
+    // General
+    { key: 'system.name', value: 'Hệ thống Quản lý NCKH', type: 'string', group: 'general', label: 'Tên hệ thống', description: 'Tên hiển thị của hệ thống' },
+    { key: 'system.university', value: 'Trường Đại học ABC', type: 'string', group: 'general', label: 'Tên trường', description: 'Tên trường đại học' },
+    { key: 'system.email', value: 'nckh@university.edu.vn', type: 'string', group: 'general', label: 'Email liên hệ', description: 'Email phòng QLKH' },
+    { key: 'system.phone', value: '028.1234.5678', type: 'string', group: 'general', label: 'Số điện thoại', description: 'SĐT phòng QLKH' },
+    // Research
+    { key: 'research.academic_year', value: '2025-2026', type: 'string', group: 'research', label: 'Năm học hiện tại', description: 'Năm học đang áp dụng' },
+    { key: 'research.required_hours', value: '50', type: 'number', group: 'research', label: 'Định mức giờ chuẩn NCKH', description: 'Số giờ chuẩn NCKH tối thiểu/năm' },
+    { key: 'research.max_file_size', value: '50', type: 'number', group: 'research', label: 'Kích thước file tối đa (MB)', description: 'Giới hạn upload file' },
+    { key: 'research.plagiarism_threshold', value: '30', type: 'number', group: 'research', label: 'Ngưỡng đạo văn (%)', description: 'Phần trăm tương đồng cảnh báo đạo văn' },
+    // Notification
+    { key: 'notification.email_enabled', value: 'true', type: 'boolean', group: 'notification', label: 'Gửi email thông báo', description: 'Bật/tắt gửi email khi có thông báo mới' },
+    { key: 'notification.deadline_days', value: '7', type: 'number', group: 'notification', label: 'Nhắc nhở trước deadline (ngày)', description: 'Số ngày trước deadline sẽ gửi nhắc nhở' },
+    { key: 'notification.auto_remind', value: 'true', type: 'boolean', group: 'notification', label: 'Tự động nhắc nhở', description: 'Tự động gửi nhắc khi gần deadline' },
+    // Display
+    { key: 'display.items_per_page', value: '10', type: 'number', group: 'display', label: 'Số mục/trang', description: 'Số lượng mục hiển thị trên mỗi trang' },
+    { key: 'display.date_format', value: 'DD/MM/YYYY', type: 'string', group: 'display', label: 'Định dạng ngày', description: 'Cách hiển thị ngày tháng' },
+    { key: 'display.language', value: 'vi', type: 'string', group: 'display', label: 'Ngôn ngữ', description: 'Ngôn ngữ giao diện' },
+  ];
+
+  for (const c of configs) {
+    await prisma.systemConfig.upsert({
+      where: { key: c.key },
+      update: {},
+      create: c,
+    });
+  }
+
+  console.log('Seed completed!', { admin: admin.id, reviewer1: reviewer1.id, reviewer2: reviewer2.id, lecturer: lecturer.id, student: student.id, journals: journals.length, configs: configs.length });
 }
 
 main()

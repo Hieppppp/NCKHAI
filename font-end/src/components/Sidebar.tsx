@@ -18,6 +18,8 @@ export const Sidebar = () => {
     if (key === 'logout') {
       logout();
       navigate('/login');
+    } else if (key === 'settings') {
+      navigate('/settings');
     }
   };
 

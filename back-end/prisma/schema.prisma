@@ -116,6 +116,7 @@ model User {
   approvedTransactions BudgetTransaction[] @relation("TransactionApprover")
   approvedRewards  Reward[]              @relation("RewardApprover")
   researchHours    ResearchHours[]
+  preferences      UserPreference[]
 }
 
 // ─── Scientific Work (Core Entity) ──────────────────────
@@ -458,4 +459,30 @@ model ResearchHours {
   updatedAt          DateTime @updatedAt
 
   @@unique([userId, academicYear])
+}
+
+// ─── System Config (Cấu hình hệ thống) ────────────────
+
+model SystemConfig {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  type        String   @default("string")  // string, number, boolean, json
+  group       String   @default("general") // general, research, notification, display
+  label       String                        // Tên hiển thị
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── User Preference (Tùy chỉnh cá nhân) ──────────────
+
+model UserPreference {
+  id     Int    @id @default(autoincrement())
+  userId Int
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key    String
+  value  String
+
+  @@unique([userId, key])
 }
