@@ -371,18 +371,27 @@ export class TemplatesService {
     parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
     const body = Buffer.concat(parts);
 
-    const response = await fetch(`${AI_SERVICE_URL}/convert-docx`, {
-      method: 'POST',
-      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
-      body,
-    });
+    try {
+      const response = await fetch(`${AI_SERVICE_URL}/convert-docx`, {
+        method: 'POST',
+        headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+        body,
+      });
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Convert failed: ${err}`);
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Convert failed: ${err}`);
+      }
+
+      return response.json();
+    } catch (e: any) {
+      // Fallback: lưu file lên MinIO, trả HTML placeholder
+      return {
+        html: `<h2>${filename}</h2><p>File đã upload nhưng không thể convert tự động. Vui lòng paste nội dung từ Word vào editor.</p>`,
+        originalName: filename,
+        warnings: [e.message || 'Convert service unavailable'],
+      };
     }
-
-    return response.json();
   }
 
   private getNestedValue(obj: Record<string, any>, path: string): string | null {
