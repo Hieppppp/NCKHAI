@@ -357,9 +357,9 @@ export default function DocumentTemplatePage() {
                       {tpl.variables.length > 4 && <span className="dt-var-chip more">+{tpl.variables.length - 4}</span>}
                     </div>
                     <div className="dt-card-actions">
-                      <button className="dt-card-btn" title="Xem trước & Xuất" onClick={() => { setPreviewing(tpl); loadDropdowns(); templateService.getOne(tpl.id).then(t => setPreviewing(t)); }}><Eye size={14} /> Xem trước</button>
-                      {isAdmin && <button className="dt-card-btn" title="Sửa" onClick={async () => { const t = await templateService.getOne(tpl.id); setEditing(t); setEditContent(t.content); const vars = await templateService.getVariables(); setVariables(vars); }}><Edit3 size={14} /></button>}
-                      {isAdmin && <button className="dt-card-btn danger" title="Xóa" onClick={() => handleDelete(tpl)}><Trash2 size={14} /></button>}
+                      <button className="dt-card-btn preview" onClick={() => { setPreviewing(tpl); loadDropdowns(); templateService.getOne(tpl.id).then(t => setPreviewing(t)); }}><Eye size={14} /> Xem trước & Xuất</button>
+                      {isAdmin && <button className="dt-card-btn edit" onClick={async () => { const t = await templateService.getOne(tpl.id); setEditing(t); setEditContent(t.content); const vars = await templateService.getVariables(); setVariables(vars); }}><Edit3 size={14} /> Chỉnh sửa mẫu</button>}
+                      {isAdmin && <button className="dt-card-btn danger" onClick={() => handleDelete(tpl)}><Trash2 size={14} /></button>}
                     </div>
                   </div>
                 );
@@ -475,7 +475,8 @@ const dtStyles = `
   .dt-var-chip.more{background:var(--surface-low);color:var(--on-surface-muted)}
   .dt-card-actions{display:flex;gap:4px;margin-top:.5rem}
   .dt-card-btn{padding:6px 12px;border:none;border-radius:6px;background:var(--surface-low);cursor:pointer;font-size:.75rem;font-weight:700;display:flex;align-items:center;gap:4px;color:var(--on-surface-muted);transition:all .15s}
-  .dt-card-btn:first-child{flex:1;justify-content:center;background:#eef2ff;color:var(--primary-indigo)}
+  .dt-card-btn.preview{flex:1;justify-content:center;background:#eef2ff;color:var(--primary-indigo)}
+  .dt-card-btn.edit{background:#f0fdf4;color:#059669}
   .dt-card-btn:hover{background:#eef2ff;color:var(--primary-indigo)}
   .dt-card-btn.danger:hover{background:#fee2e2;color:#dc2626}
 
