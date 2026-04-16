@@ -30,6 +30,7 @@ export const mainMenuItems: MenuItem[] = [
   { key: 'research-hours', name: 'Giờ chuẩn NCKH', icon: Clock, path: '/research-hours' },
   { key: 'finance', name: 'Kinh phí & Khen thưởng', icon: DollarSign, path: '/finance' },
   { key: 'library', name: 'Thư viện số', icon: Library, path: '/library' },
+  { key: 'templates', name: 'Mẫu tài liệu', icon: FileText, path: '/templates' },
   { key: 'ai-assistant', name: 'Trợ lý AI', icon: Cpu, path: '/ai' },
   { key: 'user-management', name: 'Quản lý người dùng', icon: UserCog, path: '/admin/users', roles: [Role.ADMIN] },
 ];

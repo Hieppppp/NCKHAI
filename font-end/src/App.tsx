@@ -16,6 +16,7 @@ import FinancePage from './pages/FinancePage';
 import ProfilePage from './pages/ProfilePage';
 import ResearchHoursPage from './pages/ResearchHoursPage';
 import SettingsPage from './pages/SettingsPage';
+import DocumentTemplatePage from './pages/DocumentTemplatePage';
 import { Role } from './types';
 
 function Wrapped({ children }: { children: React.ReactNode }) {
@@ -55,6 +56,9 @@ function App() {
 
       {/* Research Hours */}
       <Route path="/research-hours" element={<Wrapped><ResearchHoursPage /></Wrapped>} />
+
+      {/* Document Templates */}
+      <Route path="/templates" element={<Wrapped><DocumentTemplatePage /></Wrapped>} />
 
       {/* Settings */}
       <Route path="/settings" element={<Wrapped><SettingsPage /></Wrapped>} />
