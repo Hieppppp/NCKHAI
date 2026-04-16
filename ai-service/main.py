@@ -243,3 +243,47 @@ def delete_file(object_name: str):
         return {"message": "Đã xóa"}
     except Exception as e:
         raise HTTPException(500, f"Lỗi xóa file: {e}")
+
+
+# ─── Word/DOCX to HTML conversion ──────────────────────
+
+@app.post("/convert-docx")
+async def convert_docx_to_html(file: UploadFile = File(...)):
+    """Convert Word .docx file to HTML for template editor."""
+    if not file.filename.endswith(('.docx', '.doc')):
+        raise HTTPException(400, "Chỉ hỗ trợ file .docx")
+
+    file_bytes = await file.read()
+    if len(file_bytes) == 0:
+        raise HTTPException(400, "File rỗng")
+
+    try:
+        import mammoth
+        result = mammoth.convert_to_html(io.BytesIO(file_bytes), style_map=[
+            "p[style-name='Heading 1'] => h1:fresh",
+            "p[style-name='Heading 2'] => h2:fresh",
+            "p[style-name='Heading 3'] => h3:fresh",
+        ])
+        html = result.value
+        messages = [m.message for m in result.messages]
+
+        # Also store original file in MinIO
+        object_name = f"templates/{uuid.uuid4().hex}.docx"
+        minio_client.upload_file(object_name, file_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+        return {
+            "html": html,
+            "objectName": object_name,
+            "originalName": file.filename,
+            "warnings": messages,
+        }
+    except ImportError:
+        # Fallback: just store file, return empty HTML
+        object_name = f"templates/{uuid.uuid4().hex}.docx"
+        minio_client.upload_file(object_name, file_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        return {
+            "html": f"<p>[File {file.filename} đã upload - cần cài mammoth để convert]</p>",
+            "objectName": object_name,
+            "originalName": file.filename,
+            "warnings": ["mammoth chưa cài - chạy: pip install mammoth"],
+        }

@@ -1,43 +1,20 @@
 import { useState, useEffect } from 'react';
 import {
-  Download,
-  Send,
-  Sparkles,
-  ShieldCheck,
-  Save,
-  PenTool,
-  ChevronRight,
-  Plus,
-  Users,
-  Calendar,
-  MapPin,
-  Loader2,
-  CheckCircle,
-  Clock,
-  Star,
-  ArrowLeft,
-  X,
-  Award,
-  BarChart3,
-  Shield,
-  ArrowUpRight,
+  Send, Sparkles, ShieldCheck, PenTool, Plus, Users, Calendar, MapPin,
+  Loader2, CheckCircle, Clock, Star, ArrowLeft, X,
 } from 'lucide-react';
 import { ProgressBar } from '../components/common/ProgressBar';
+import { Modal } from '../components/common/Modal';
 import { committeeService } from '../services/committeeService';
 import { workService } from '../services/workService';
 import { userService } from '../services/userService';
 import { aiService } from '../services/aiService';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../components/common/Toast';
 import { Role } from '../types';
 
 interface Committee {
-  id: number;
-  name: string;
-  description?: string;
-  meetingDate?: string;
-  location?: string;
-  finalScore?: number;
-  conclusion?: string;
+  id: number; name: string; description?: string; meetingDate?: string; location?: string; finalScore?: number; conclusion?: string;
   work: { id: number; title: string; status?: string; authors?: string; abstract?: string; level?: string };
   members: { id: number; role: string; user: { id: number; name: string; email: string; specialization?: string } }[];
   reviews: { id: number; innovationScore: number; feasibilityScore: number; impactScore: number; totalScore: number; comment?: string; recommendation?: string; reviewer: { id: number; name: string; email: string }; createdAt: string }[];
@@ -46,6 +23,7 @@ interface Committee {
 
 export const CommitteeEvaluation = () => {
   const { user, hasRole } = useAuth();
+  const { error: showError } = useToast();
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Committee | null>(null);
@@ -53,1012 +31,393 @@ export const CommitteeEvaluation = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [experts, setExperts] = useState<any[]>([]);
-  const [loadingExperts, setLoadingExperts] = useState(false);
 
-  // Data for dropdowns
   const [worksList, setWorksList] = useState<{ id: number; title: string }[]>([]);
   const [usersList, setUsersList] = useState<{ id: number; name: string; email: string; role: string }[]>([]);
 
-  // Score state
   const [scores, setScores] = useState({ innovation: 0, feasibility: 0, impact: 0 });
   const [comment, setComment] = useState('');
   const [recommendation, setRecommendation] = useState('');
-
-  // Create form
-  const [createForm, setCreateForm] = useState({
-    name: '', description: '', workId: '', meetingDate: '', location: '',
-    members: [{ userId: '', role: 'reviewer' }],
-  });
-
   const totalScore = scores.innovation + scores.feasibility + scores.impact;
 
-  useEffect(() => {
-    loadCommittees();
-  }, []);
+  const [createForm, setCreateForm] = useState({ name: '', description: '', workId: '', meetingDate: '', location: '', members: [{ userId: '', role: 'reviewer' }] });
 
-  const loadCommittees = async () => {
-    setLoading(true);
-    try {
-      const data = await committeeService.getAll();
-      setCommittees(data);
-    } catch { /* ignore */ }
-    setLoading(false);
-  };
+  useEffect(() => { loadCommittees(); }, []);
 
-  const loadCommitteeDetail = async (id: number) => {
+  const loadCommittees = async () => { setLoading(true); try { setCommittees(await committeeService.getAll()); } catch { /* */ } setLoading(false); };
+
+  const loadDetail = async (id: number) => {
     try {
       const data = await committeeService.getOne(id);
-      setSelected(data);
-      setScores({ innovation: 0, feasibility: 0, impact: 0 });
-      setComment('');
-      setRecommendation('');
-      setSubmitSuccess(false);
+      setSelected(data); setScores({ innovation: 0, feasibility: 0, impact: 0 }); setComment(''); setRecommendation(''); setSubmitSuccess(false);
+      if (data.work?.id) { try { const e = await aiService.suggestExperts(data.work.id); setExperts(e.suggestions || e || []); } catch { setExperts([]); } }
+    } catch { /* */ }
+  };
 
-      // Load AI expert suggestions
-      if (data.work?.id) {
-        setLoadingExperts(true);
-        try {
-          const e = await aiService.suggestExperts(data.work.id);
-          setExperts(e.suggestions || []);
-        } catch { setExperts([]); }
-        setLoadingExperts(false);
-      }
-    } catch { /* ignore */ }
+  const openCreate = async () => {
+    setShowCreate(true);
+    try {
+      const [w, u] = await Promise.all([workService.getAll({ page: '1', limit: '100' }), userService.getAll(1, 100)]);
+      setWorksList((w.data || w).map((x: any) => ({ id: x.id, title: x.title })));
+      setUsersList((u.data || u).map((x: any) => ({ id: x.id, name: x.name || x.email, email: x.email, role: x.role })));
+    } catch { /* */ }
+  };
+
+  const handleCreate = async () => {
+    setSubmitting(true);
+    try {
+      await committeeService.create({ name: createForm.name, description: createForm.description, workId: +createForm.workId, meetingDate: createForm.meetingDate || undefined, location: createForm.location || undefined, members: createForm.members.filter(m => m.userId).map(m => ({ userId: +m.userId, role: m.role })) });
+      setShowCreate(false); setCreateForm({ name: '', description: '', workId: '', meetingDate: '', location: '', members: [{ userId: '', role: 'reviewer' }] }); loadCommittees();
+    } catch (e: any) { showError(e.response?.data?.message || 'Tạo hội đồng thất bại'); }
+    setSubmitting(false);
   };
 
   const handleSubmitReview = async () => {
     if (!selected || !user) return;
     setSubmitting(true);
     try {
-      await committeeService.submitReview({
-        workId: selected.work.id,
-        committeeId: selected.id,
-        innovationScore: scores.innovation,
-        feasibilityScore: scores.feasibility,
-        impactScore: scores.impact,
-        comment,
-        recommendation,
-      });
-      setSubmitSuccess(true);
-      loadCommitteeDetail(selected.id);
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Gửi đánh giá thất bại');
-    }
+      await committeeService.submitReview({ workId: selected.work.id, committeeId: selected.id, innovationScore: scores.innovation, feasibilityScore: scores.feasibility, impactScore: scores.impact, comment, recommendation });
+      setSubmitSuccess(true); loadDetail(selected.id);
+    } catch (e: any) { showError(e.response?.data?.message || 'Gửi đánh giá thất bại'); }
     setSubmitting(false);
   };
 
-  const handleCreate = async () => {
-    setSubmitting(true);
-    try {
-      await committeeService.create({
-        name: createForm.name,
-        description: createForm.description,
-        workId: +createForm.workId,
-        meetingDate: createForm.meetingDate || undefined,
-        location: createForm.location || undefined,
-        members: createForm.members.filter(m => m.userId).map(m => ({ userId: +m.userId, role: m.role })),
-      });
-      setShowCreate(false);
-      setCreateForm({ name: '', description: '', workId: '', meetingDate: '', location: '', members: [{ userId: '', role: 'reviewer' }] });
-      loadCommittees();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Tạo hội đồng thất bại');
-    }
-    setSubmitting(false);
-  };
-
-  const handleScoreChange = (key: keyof typeof scores, value: number) => {
-    setScores(prev => ({ ...prev, [key]: value }));
-  };
-
-  const userAlreadyReviewed = selected?.reviews?.some(r => r.reviewer.id === user?.id);
+  const userReviewed = selected?.reviews?.some(r => r.reviewer.id === user?.id);
   const isMember = selected?.members?.some(m => m.user.id === user?.id);
+  const completed = committees.filter(c => c.finalScore != null).length;
+  const avgScore = completed > 0 ? (committees.filter(c => c.finalScore != null).reduce((s, c) => s + (c.finalScore || 0), 0) / completed).toFixed(1) : '—';
 
-  // Computed stats
-  const completedCount = committees.filter(c => c.finalScore != null).length;
-  const pendingCount = committees.filter(c => c.finalScore == null).length;
-  const avgScore = completedCount > 0
-    ? (committees.filter(c => c.finalScore != null).reduce((s, c) => s + (c.finalScore || 0), 0) / completedCount).toFixed(1)
-    : '—';
-
-  // --- Committee List View ---
-  if (!selected) {
+  // ─── DETAIL VIEW ───
+  if (selected) {
     return (
-      <div className="ce-page">
-        {/* Hero Banner */}
-        <section className="ce-hero">
-          <div className="ce-hero-left">
-            <div className="ce-hero-greeting">
-              <h1>Quản ly Hoi dong Danh gia</h1>
-              <span className="ce-hero-badge"><Shield size={12} /> HOI DONG CHAM DIEM</span>
-            </div>
-            <p className="ce-hero-desc">
-              He thong dang quan ly <strong>{committees.length}</strong> hoi dong,{' '}
-              <strong>{completedCount}</strong> da hoan thanh va{' '}
-              <strong>{pendingCount}</strong> dang cho xu ly.
-            </p>
-            <div className="ce-hero-actions">
-              {hasRole(Role.ADMIN) && (
-                <button className="ce-btn-hero primary" onClick={async () => {
-                  setShowCreate(true);
-                  try {
-                    const [w, u] = await Promise.all([
-                      workService.getAll({ page: '1', limit: '100' }),
-                      userService.getAll(1, 100),
-                    ]);
-                    setWorksList((w.data || w).map((x: any) => ({ id: x.id, title: x.title })));
-                    setUsersList((u.data || u).map((x: any) => ({ id: x.id, name: x.name || x.email, email: x.email, role: x.role })));
-                  } catch { /* ignore */ }
-                }}>
-                  <Plus size={16} /> Tao Hoi dong moi
-                </button>
-              )}
-              <button className="ce-btn-hero secondary">
-                <BarChart3 size={16} /> Bao cao tong hop
-              </button>
-            </div>
-          </div>
-          <div className="ce-hero-right">
-            <div className="ce-hero-ring">
-              <svg viewBox="0 0 36 36" className="ce-ring-svg">
-                <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2.5" />
-                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#10b981" strokeWidth="2.5"
-                  strokeDasharray={`${committees.length > 0 ? (completedCount / committees.length) * 100 : 0} ${100 - (committees.length > 0 ? (completedCount / committees.length) * 100 : 0)}`}
-                  strokeLinecap="round" transform="rotate(-90 18 18)" />
-              </svg>
-              <div className="ce-ring-center">
-                <span className="ce-ring-pct">{committees.length > 0 ? ((completedCount / committees.length) * 100).toFixed(0) : 0}%</span>
-                <span className="ce-ring-label">Hoan thanh</span>
+      <div className="ce">
+        <button className="ce-back" onClick={() => setSelected(null)}><ArrowLeft size={16} /> Quay lại danh sách</button>
+
+        {submitSuccess && <div className="ce-success"><CheckCircle size={16} /> Đánh giá đã được gửi thành công!</div>}
+
+        <div className="ce-detail-grid">
+          <div className="ce-main">
+            {/* Project summary */}
+            <div className="surface-card ce-project">
+              <div className="ce-proj-visual"><div className="ce-proj-overlay"><small>LĨNH VỰC</small><strong>{selected.work.level || 'Nghiên cứu'}</strong></div></div>
+              <div className="ce-proj-info">
+                <h2>{selected.work.title}</h2>
+                {selected.work.abstract && <p className="ce-proj-abs">{selected.work.abstract}</p>}
+                <div className="ce-proj-meta">
+                  <div><small>TÁC GIẢ</small><strong>{selected.work.authors || '—'}</strong></div>
+                  <div><small>NGÀY HỌP</small><strong>{selected.meetingDate ? new Date(selected.meetingDate).toLocaleDateString('vi-VN') : 'Chưa xác định'}</strong></div>
+                  <div><small>ĐỊA ĐIỂM</small><strong>{selected.location || 'Chưa xác định'}</strong></div>
+                  <div><small>TRẠNG THÁI</small><strong>{selected.work.status || '—'}</strong></div>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* Stats Cards */}
-        <section className="ce-stats-grid">
-          <div className="surface-card ce-stat-card">
-            <div className="ce-stat-icon" style={{ background: '#4f46e512', color: '#4f46e5' }}><Users size={22} /></div>
-            <div className="ce-stat-info">
-              <span className="ce-stat-value" style={{ color: '#4f46e5' }}>{committees.length}</span>
-              <span className="ce-stat-label">Tong hoi dong</span>
-              <span className="ce-stat-sub">tat ca cac ki</span>
-            </div>
-          </div>
-          <div className="surface-card ce-stat-card">
-            <div className="ce-stat-icon" style={{ background: '#10b98112', color: '#10b981' }}><CheckCircle size={22} /></div>
-            <div className="ce-stat-info">
-              <span className="ce-stat-value" style={{ color: '#10b981' }}>{completedCount}</span>
-              <span className="ce-stat-label">Da hoan thanh</span>
-              <span className="ce-stat-sub">{committees.length > 0 ? ((completedCount / committees.length) * 100).toFixed(0) : 0}% tong so</span>
-            </div>
-          </div>
-          <div className="surface-card ce-stat-card">
-            <div className="ce-stat-icon" style={{ background: '#f59e0b12', color: '#f59e0b' }}><Clock size={22} /></div>
-            <div className="ce-stat-info">
-              <span className="ce-stat-value" style={{ color: '#f59e0b' }}>{pendingCount}</span>
-              <span className="ce-stat-label">Dang cho</span>
-              <span className="ce-stat-sub">can phan bien</span>
-            </div>
-          </div>
-          <div className="surface-card ce-stat-card">
-            <div className="ce-stat-icon" style={{ background: '#7c3aed12', color: '#7c3aed' }}><Star size={22} /></div>
-            <div className="ce-stat-info">
-              <span className="ce-stat-value" style={{ color: '#7c3aed' }}>{avgScore}</span>
-              <span className="ce-stat-label">Diem TB</span>
-              <span className="ce-stat-sub">trung binh cong</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Committee List */}
-        {loading ? (
-          <div className="ce-loading">
-            <Loader2 size={36} className="ce-spin" color="#4f46e5" />
-          </div>
-        ) : committees.length === 0 ? (
-          <div className="surface-card ce-empty">
-            <Users size={48} style={{ opacity: 0.25, marginBottom: 12, color: 'var(--on-surface-muted)' }} />
-            <p>Chua co hoi dong nao duoc tao.</p>
-          </div>
-        ) : (
-          <div className="ce-grid">
-            {committees.map(c => {
-              const reviewCount = c._count?.reviews || c.reviews?.length || 0;
-              const progress = c.members.length > 0 ? (reviewCount / c.members.length) * 100 : 0;
-              return (
-                <div key={c.id} className="surface-card ce-card" onClick={() => loadCommitteeDetail(c.id)}>
-                  <div className="ce-card-top">
-                    <span className={`ce-badge ${c.conclusion === 'Dat' ? 'pass' : c.conclusion === 'Khong dat' ? 'fail' : 'pending'}`}>
-                      {c.conclusion || 'Dang danh gia'}
-                    </span>
-                    {c.finalScore != null && (
-                      <span className="ce-final-score">{c.finalScore.toFixed(1)}<span className="ce-score-max">/100</span></span>
-                    )}
-                  </div>
-                  <h3 className="ce-card-name">{c.name}</h3>
-                  <p className="ce-card-work">{c.work.title}</p>
-                  <div className="ce-card-meta">
-                    <span><Users size={13} /> {c.members.length} thanh vien</span>
-                    {c.meetingDate && (
-                      <span><Calendar size={13} /> {new Date(c.meetingDate).toLocaleDateString('vi-VN')}</span>
-                    )}
-                    {c.location && <span><MapPin size={13} /> {c.location}</span>}
-                  </div>
-                  <div className="ce-card-progress">
-                    <div className="ce-progress-header">
-                      <span>{reviewCount}/{c.members.length} da cham</span>
-                      <span className="ce-progress-pct">{progress.toFixed(0)}%</span>
-                    </div>
-                    <ProgressBar progress={progress} color="#4f46e5" height="4px" />
-                  </div>
-                  <div className="ce-card-arrow"><ArrowUpRight size={16} /></div>
+            {/* Score sheet or reviews */}
+            {isMember && !userReviewed ? (
+              <div className="surface-card ce-score-card">
+                <div className="ce-score-head">
+                  <div className="ce-score-title"><PenTool size={18} /> Phiếu đánh giá điện tử</div>
+                  <div className="ce-total-badge"><small>TỔNG:</small> <strong>{totalScore}</strong> <span>/100</span></div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Create Modal */}
-        {showCreate && (
-          <div className="ce-modal-overlay" onClick={() => setShowCreate(false)}>
-            <div className="surface-card ce-modal" onClick={e => e.stopPropagation()}>
-              <div className="ce-modal-header">
-                <div>
-                  <h2>Tao Hoi dong moi</h2>
-                  <p className="ce-modal-sub">Thiet lap hoi dong phan bien cho de tai nghien cuu</p>
+                <div className="ce-criteria">
+                  <Slider label="1. Tính đổi mới & Sáng tạo" desc="Đánh giá sự khác biệt so với các nghiên cứu hiện có." max={40} value={scores.innovation} onChange={v => setScores({ ...scores, innovation: v })} />
+                  <Slider label="2. Tính khả thi & Phương pháp luận" desc="Đánh giá độ tin cậy của mô hình và đội ngũ thực hiện." max={30} value={scores.feasibility} onChange={v => setScores({ ...scores, feasibility: v })} />
+                  <Slider label="3. Tác động kinh tế - xã hội" desc="Đánh giá khả năng chuyển giao và áp dụng thực tiễn." max={30} value={scores.impact} onChange={v => setScores({ ...scores, impact: v })} />
                 </div>
-                <button className="ce-btn-close" onClick={() => setShowCreate(false)}><X size={20} /></button>
-              </div>
-
-              <div className="ce-form-grid">
-                <div className="ce-form-field">
-                  <label>Ten hoi dong <span className="ce-required">*</span></label>
-                  <input value={createForm.name} onChange={e => setCreateForm({ ...createForm, name: e.target.value })} placeholder="VD: HD Tham dinh de tai DT-2024" />
-                </div>
-                <div className="ce-form-field">
-                  <label>De tai nghien cuu <span className="ce-required">*</span></label>
-                  <select value={createForm.workId} onChange={e => setCreateForm({ ...createForm, workId: e.target.value })}>
-                    <option value="">-- Chon de tai --</option>
-                    {worksList.map(w => <option key={w.id} value={w.id}>{w.title}</option>)}
-                  </select>
-                </div>
-                <div className="ce-form-field">
-                  <label>Ngay hop</label>
-                  <input type="datetime-local" value={createForm.meetingDate} onChange={e => setCreateForm({ ...createForm, meetingDate: e.target.value })} />
-                </div>
-                <div className="ce-form-field">
-                  <label>Dia diem</label>
-                  <input value={createForm.location} onChange={e => setCreateForm({ ...createForm, location: e.target.value })} placeholder="VD: Phong hop A, Tang 3" />
-                </div>
-                <div className="ce-form-field ce-full-width">
-                  <label>Mo ta</label>
-                  <textarea value={createForm.description} onChange={e => setCreateForm({ ...createForm, description: e.target.value })} placeholder="Mo ta muc dich hoi dong..." rows={2} />
-                </div>
-                <div className="ce-form-field ce-full-width">
-                  <label>Thanh vien hoi dong</label>
-                  {createForm.members.map((m, i) => (
-                    <div key={i} className="ce-member-row">
-                      <select value={m.userId} onChange={e => {
-                        const ms = [...createForm.members];
-                        ms[i] = { ...ms[i], userId: e.target.value };
-                        setCreateForm({ ...createForm, members: ms });
-                      }} className="ce-member-select">
-                        <option value="">-- Chon thanh vien --</option>
-                        {usersList.filter(u => u.role === 'ADMIN' || u.role === 'REVIEWER' || u.role === 'LECTURER').map(u => (
-                          <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                        ))}
-                      </select>
-                      <select value={m.role} onChange={e => {
-                        const ms = [...createForm.members];
-                        ms[i] = { ...ms[i], role: e.target.value };
-                        setCreateForm({ ...createForm, members: ms });
-                      }} className="ce-role-select">
-                        <option value="chair">Chu tich</option>
-                        <option value="secretary">Thu ky</option>
-                        <option value="reviewer">Phan bien</option>
-                        <option value="member">Thanh vien</option>
-                      </select>
-                      {createForm.members.length > 1 && (
-                        <button className="ce-btn-remove" onClick={() => {
-                          setCreateForm({ ...createForm, members: createForm.members.filter((_, j) => j !== i) });
-                        }}><X size={14} /></button>
-                      )}
-                    </div>
+                <h4 className="ce-comment-label">Nhận xét chi tiết</h4>
+                <textarea className="ce-textarea" value={comment} onChange={e => setComment(e.target.value)} placeholder="Nhập ý kiến chuyên môn..." />
+                <div className="ce-rec-row">
+                  {[{ v: 'accept', l: 'Chấp nhận', c: '#10b981' }, { v: 'revise', l: 'Yêu cầu chỉnh sửa', c: '#f59e0b' }, { v: 'reject', l: 'Từ chối', c: '#ef4444' }].map(o => (
+                    <button key={o.v} className={`ce-rec-btn ${recommendation === o.v ? 'active' : ''}`} style={{ borderColor: recommendation === o.v ? o.c : undefined, color: recommendation === o.v ? o.c : undefined, background: recommendation === o.v ? `${o.c}12` : undefined }} onClick={() => setRecommendation(o.v)}>{o.l}</button>
                   ))}
-                  <button className="ce-btn-add-member" onClick={() => setCreateForm({ ...createForm, members: [...createForm.members, { userId: '', role: 'reviewer' }] })}>
-                    <Plus size={14} /> Them thanh vien
-                  </button>
                 </div>
-              </div>
-
-              <div className="ce-modal-actions">
-                <button className="ce-btn-cancel" onClick={() => setShowCreate(false)}>Huy</button>
-                <button className="ce-btn-submit" onClick={handleCreate} disabled={submitting || !createForm.name || !createForm.workId}>
-                  {submitting ? <Loader2 size={16} className="ce-spin" /> : <Plus size={16} />}
-                  Tao hoi dong
+                <button className="ce-submit-btn" onClick={handleSubmitReview} disabled={submitting || totalScore === 0}>
+                  {submitting ? <Loader2 size={16} className="ce-spin" /> : <Send size={16} />} Gửi đánh giá
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        <style>{ceStyles}</style>
-      </div>
-    );
-  }
-
-  // --- Committee Detail / Evaluation View ---
-  return (
-    <div className="ce-page">
-      {/* Detail Hero */}
-      <section className="ce-hero ce-hero-detail">
-        <div className="ce-hero-left">
-          <button className="ce-btn-back" onClick={() => setSelected(null)}>
-            <ArrowLeft size={14} /> Quay lai danh sach
-          </button>
-          <h1>Tham dinh De tai Nghien cuu</h1>
-          <p className="ce-hero-desc">
-            Hoi dong: <strong>{selected.name}</strong> — {selected.members.length} thanh vien,{' '}
-            {selected.reviews.length} phieu da cham.
-          </p>
-          <div className="ce-hero-actions">
-            <button className="ce-btn-hero secondary">
-              <Download size={16} /> Tai ho so goc
-            </button>
-            {isMember && !userAlreadyReviewed && (
-              <button className="ce-btn-hero primary" onClick={handleSubmitReview} disabled={submitting || totalScore === 0}>
-                {submitting ? <Loader2 size={16} className="ce-spin" /> : <Send size={16} />}
-                Gui ket qua
-              </button>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {submitSuccess && (
-        <div className="ce-success-banner">
-          <CheckCircle size={18} /> Danh gia da duoc gui thanh cong!
-        </div>
-      )}
-
-      <div className="ce-detail-grid">
-        {/* Main Column */}
-        <div className="ce-main-col">
-          {/* Project Summary */}
-          <section className="surface-card ce-project-card">
-            <div className="ce-project-visual">
-              <div className="ce-visual-bg">
-                <div className="ce-visual-overlay">
-                  <span className="ce-visual-tag">LINH VUC</span>
-                  <strong>{selected.work.level || 'Nghien cuu khoa hoc'}</strong>
-                </div>
-              </div>
-            </div>
-            <div className="ce-project-info">
-              <h2 className="ce-project-title">{selected.work.title}</h2>
-              {selected.work.abstract && (
-                <p className="ce-project-abstract">{selected.work.abstract}</p>
-              )}
-              <div className="ce-meta-grid">
-                <div className="ce-meta-item">
-                  <span className="ce-meta-label">TAC GIA</span>
-                  <strong>{selected.work.authors || '—'}</strong>
-                </div>
-                <div className="ce-meta-item">
-                  <span className="ce-meta-label">TRANG THAI</span>
-                  <strong>{selected.work.status || '—'}</strong>
-                </div>
-                <div className="ce-meta-item">
-                  <span className="ce-meta-label">NGAY HOP</span>
-                  <strong>{selected.meetingDate ? new Date(selected.meetingDate).toLocaleDateString('vi-VN') : 'Chua xac dinh'}</strong>
-                </div>
-                <div className="ce-meta-item">
-                  <span className="ce-meta-label">DIA DIEM</span>
-                  <strong>{selected.location || 'Chua xac dinh'}</strong>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Score Sheet or Reviews */}
-          {isMember && !userAlreadyReviewed ? (
-            <section className="surface-card ce-score-card">
-              <div className="ce-score-header">
-                <div className="ce-score-title-row">
-                  <div className="ce-icon-wrap"><PenTool size={20} /></div>
-                  <div>
-                    <h3>Phieu danh gia dien tu</h3>
-                    <p className="ce-score-subtitle">Cham diem theo 3 tieu chi</p>
-                  </div>
-                </div>
-                <div className="ce-total-badge">
-                  <span className="ce-total-label">TONG DIEM</span>
-                  <span className="ce-total-value">{totalScore}</span>
-                  <span className="ce-total-max">/ 100</span>
-                </div>
-              </div>
-
-              <div className="ce-criteria-list">
-                <CriterionSlider label="1. Tinh doi moi & Sang tao" desc="Danh gia su khac biet so voi cac nghien cuu hien co." max={40} value={scores.innovation} onChange={v => handleScoreChange('innovation', v)} />
-                <CriterionSlider label="2. Tinh kha thi & Phuong phap luan" desc="Danh gia do tin cay cua mo hinh va doi ngu thuc hien." max={30} value={scores.feasibility} onChange={v => handleScoreChange('feasibility', v)} />
-                <CriterionSlider label="3. Tac dong kinh te - xa hoi" desc="Danh gia kha nang chuyen giao va ap dung thuc tien." max={30} value={scores.impact} onChange={v => handleScoreChange('impact', v)} />
-              </div>
-
-              <div className="ce-comment-section">
-                <h4>Nhan xet chi tiet & Kien nghi</h4>
-                <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Nhap y kien chuyen mon cua ban tai day..." className="ce-textarea" />
-              </div>
-
-              <div className="ce-recommendation-section">
-                <label className="ce-rec-label">De xuat</label>
-                <div className="ce-rec-buttons">
-                  {[
-                    { v: 'accept', l: 'Chap nhan', c: '#10b981', bg: '#10b98115' },
-                    { v: 'revise', l: 'Yeu cau chinh sua', c: '#f59e0b', bg: '#f59e0b15' },
-                    { v: 'reject', l: 'Tu choi', c: '#dc2626', bg: '#dc262615' },
-                  ].map(opt => (
-                    <button key={opt.v} onClick={() => setRecommendation(opt.v)}
-                      className="ce-rec-btn"
-                      style={{
-                        borderColor: recommendation === opt.v ? opt.c : 'var(--surface-variant)',
-                        background: recommendation === opt.v ? opt.bg : 'var(--surface-lowest)',
-                        color: recommendation === opt.v ? opt.c : 'var(--on-surface-muted)',
-                      }}>
-                      {opt.l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </section>
-          ) : (
-            <section className="surface-card ce-reviews-card">
-              <div className="ce-reviews-header">
-                <div className="ce-icon-wrap"><PenTool size={18} /></div>
-                <h3>Ket qua danh gia ({selected.reviews.length} phieu)</h3>
-              </div>
-
-              {selected.finalScore != null && (
-                <div className={`ce-conclusion-banner ${selected.conclusion === 'Dat' ? 'pass' : selected.conclusion === 'Khong dat' ? 'fail' : 'pending'}`}>
-                  <div className="ce-conclusion-score">{selected.finalScore.toFixed(1)}</div>
-                  <div className="ce-conclusion-info">
-                    <div className="ce-conclusion-label">Ket luan: {selected.conclusion}</div>
-                    <div className="ce-conclusion-sub">Diem trung binh tu {selected.reviews.length} phieu danh gia</div>
-                  </div>
-                </div>
-              )}
-
-              {selected.reviews.length === 0 ? (
-                <p className="ce-empty-text">Chua co danh gia nao</p>
-              ) : (
-                <div className="ce-review-list">
-                  {selected.reviews.map(r => (
-                    <div key={r.id} className="ce-review-item">
-                      <div className="ce-review-top">
-                        <div className="ce-reviewer-info">
-                          <div className="ce-reviewer-avatar">{(r.reviewer.name || 'U')[0]}</div>
-                          <span className="ce-reviewer-name">{r.reviewer.name || r.reviewer.email}</span>
-                        </div>
-                        <span className="ce-review-score">{r.totalScore}<span className="ce-score-unit">/100</span></span>
-                      </div>
-                      <div className="ce-review-scores">
-                        <span>Doi moi: <b>{r.innovationScore}/40</b></span>
-                        <span>Kha thi: <b>{r.feasibilityScore}/30</b></span>
-                        <span>Tac dong: <b>{r.impactScore}/30</b></span>
-                      </div>
-                      {r.comment && <p className="ce-review-comment">{r.comment}</p>}
-                      {r.recommendation && (
-                        <span className={`ce-rec-pill ${r.recommendation}`}>
-                          {r.recommendation === 'accept' ? 'Chap nhan' : r.recommendation === 'reject' ? 'Tu choi' : 'Yeu cau chinh sua'}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
-        </div>
-
-        {/* Sidebar */}
-        <aside className="ce-sidebar">
-          {/* AI Expert Suggestions */}
-          <section className="ce-ai-card">
-            <div className="ce-ai-header">
-              <Sparkles size={16} />
-              <span>AI GOI Y CHUYEN GIA DOI CHIEU</span>
-            </div>
-            {loadingExperts ? (
-              <div className="ce-ai-loading">
-                <Loader2 size={20} className="ce-spin" />
-              </div>
-            ) : experts.length > 0 ? (
-              <>
-                <p className="ce-ai-hint">He thong da phan tich tu khoa va de xuat chuyen gia phu hop:</p>
-                <div className="ce-expert-list">
-                  {experts.slice(0, 5).map((exp: any, idx: number) => (
-                    <div key={idx} className="ce-expert-item">
-                      <div className="ce-expert-avatar">{(exp.name || 'U')[0]}</div>
-                      <div className="ce-expert-info">
-                        <h5>{exp.name}</h5>
-                        <p>{exp.specialization || exp.email}</p>
-                      </div>
-                      {exp.matchScore && <div className="ce-match-tag">{exp.matchScore}%</div>}
-                    </div>
-                  ))}
-                </div>
-              </>
             ) : (
-              <p className="ce-ai-hint">Chua co du lieu goi y chuyen gia cho de tai nay.</p>
+              <div className="surface-card ce-reviews-card">
+                <h3><PenTool size={16} /> Kết quả đánh giá ({selected.reviews.length} phiếu)</h3>
+                {selected.finalScore != null && (
+                  <div className={`ce-final ${selected.conclusion === 'Đạt' ? 'pass' : selected.conclusion === 'Không đạt' ? 'fail' : 'warn'}`}>
+                    <span className="ce-final-score">{selected.finalScore.toFixed(1)}</span>
+                    <div><strong>Kết luận: {selected.conclusion}</strong><p>Điểm trung bình từ {selected.reviews.length} phiếu</p></div>
+                  </div>
+                )}
+                {selected.reviews.length === 0 ? <p className="ce-muted">Chưa có đánh giá nào</p> : (
+                  <div className="ce-review-list">{selected.reviews.map(r => (
+                    <div key={r.id} className="ce-review-item">
+                      <div className="ce-review-head"><span>{r.reviewer.name || r.reviewer.email}</span><strong>{r.totalScore}/100</strong></div>
+                      <div className="ce-review-scores"><span>Đổi mới: <b>{r.innovationScore}/40</b></span><span>Khả thi: <b>{r.feasibilityScore}/30</b></span><span>Tác động: <b>{r.impactScore}/30</b></span></div>
+                      {r.comment && <p className="ce-review-comment">{r.comment}</p>}
+                      {r.recommendation && <span className={`ce-rec-pill ${r.recommendation}`}>{r.recommendation === 'accept' ? 'Chấp nhận' : r.recommendation === 'reject' ? 'Từ chối' : 'Yêu cầu chỉnh sửa'}</span>}
+                    </div>
+                  ))}</div>
+                )}
+              </div>
             )}
-          </section>
+          </div>
 
-          {/* Council Progress */}
-          <section className="surface-card ce-progress-card">
-            <div className="ce-progress-title-row">
-              <Award size={18} color="#4f46e5" />
-              <h3>Tien do Hoi dong</h3>
+          {/* Sidebar */}
+          <aside className="ce-side">
+            {/* AI Experts */}
+            <div className="ce-ai-card">
+              <div className="ce-ai-head"><Sparkles size={16} /> AI GỢI Ý CHUYÊN GIA</div>
+              {experts.length > 0 ? (
+                <div className="ce-expert-list">{experts.slice(0, 5).map((e: any, i: number) => (
+                  <div key={i} className="ce-expert"><div className="ce-expert-avatar">{(e.name || 'U')[0]}</div><div className="ce-expert-info"><h5>{e.name}</h5><p>{e.specialization || e.email}</p></div>{e.matchScore && <span className="ce-match">{e.matchScore}%</span>}</div>
+                ))}</div>
+              ) : <p className="ce-ai-hint">Chưa có dữ liệu gợi ý</p>}
             </div>
-            <div className="ce-progress-stats">
-              <span>Thanh vien da cham</span>
-              <strong>{selected.reviews.length} / {selected.members.length}</strong>
-            </div>
-            <ProgressBar progress={selected.members.length > 0 ? (selected.reviews.length / selected.members.length) * 100 : 0} color="#4f46e5" height="6px" />
 
-            <div className="ce-council-members">
-              <span className="ce-section-label">THANH VIEN HOI DONG</span>
+            {/* Progress */}
+            <div className="surface-card ce-progress-card">
+              <h4>Tiến độ Hội đồng</h4>
+              <div className="ce-prog-stats"><span>Đã chấm</span><strong>{selected.reviews.length} / {selected.members.length}</strong></div>
+              <ProgressBar progress={selected.members.length > 0 ? (selected.reviews.length / selected.members.length) * 100 : 0} color="var(--primary-indigo)" height="6px" />
               <div className="ce-member-list">
                 {selected.members.map(m => {
                   const reviewed = selected.reviews.some(r => r.reviewer.id === m.user.id);
-                  const roleLabel = m.role === 'chair' ? 'Chu tich' : m.role === 'secretary' ? 'Thu ky' : m.role === 'reviewer' ? 'Phan bien' : 'Thanh vien';
                   return (
-                    <div key={m.id} className="ce-member-item">
-                      <div className={`ce-member-avatar ${reviewed ? 'done' : ''}`}>
-                        {reviewed ? <CheckCircle size={14} /> : (m.user.name || 'U')[0]}
-                      </div>
-                      <div className="ce-member-detail">
-                        <span className="ce-member-name">{m.user.name || m.user.email}</span>
-                        <span className="ce-member-role">{roleLabel}</span>
-                      </div>
-                      {reviewed && <CheckCircle size={14} color="#10b981" />}
+                    <div key={m.id} className="ce-member-row">
+                      <div className={`ce-member-dot ${reviewed ? 'done' : ''}`}>{reviewed ? <CheckCircle size={12} /> : (m.user.name || 'U')[0]}</div>
+                      <span>{m.user.name || m.user.email}</span>
+                      <small>({m.role === 'chair' ? 'Chủ tịch' : m.role === 'secretary' ? 'Thư ký' : m.role === 'reviewer' ? 'Phản biện' : 'Thành viên'})</small>
                     </div>
                   );
                 })}
               </div>
             </div>
-          </section>
 
-          {/* Actions */}
-          <div className="ce-sidebar-actions">
-            <button className="ce-btn-back-sidebar" onClick={() => setSelected(null)}>
-              <ArrowLeft size={16} /> Quay lai danh sach
-            </button>
-            {isMember && !userAlreadyReviewed && (
-              <button className="ce-btn-submit-sidebar" onClick={handleSubmitReview} disabled={submitting || totalScore === 0}>
-                <ShieldCheck size={18} />
-                {submitting ? 'Dang gui...' : 'Xac nhan & Gui danh gia'}
-              </button>
-            )}
-          </div>
-        </aside>
+            <button className="ce-back-btn" onClick={() => setSelected(null)}><ArrowLeft size={14} /> Quay lại danh sách</button>
+            {isMember && !userReviewed && <button className="ce-submit-side" onClick={handleSubmitReview} disabled={submitting || totalScore === 0}><ShieldCheck size={16} /> Xác nhận & Gửi</button>}
+          </aside>
+        </div>
+        <style>{ceStyles}</style>
       </div>
+    );
+  }
+
+  // ─── LIST VIEW ───
+  return (
+    <div className="ce">
+      <section className="ce-hero">
+        <div className="ce-hero-left">
+          <h1>Hội đồng Đánh giá</h1>
+          <p>Quản lý và đánh giá các công trình khoa học qua hội đồng phản biện chuyên nghiệp</p>
+          {hasRole(Role.ADMIN) && <button className="ce-hero-btn" onClick={openCreate}><Plus size={16} /> Tạo Hội đồng mới</button>}
+        </div>
+        <div className="ce-hero-ring">
+          <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="2.5" /><circle cx="18" cy="18" r="15.9" fill="none" stroke="#10b981" strokeWidth="2.5" strokeDasharray={`${committees.length > 0 ? (completed / committees.length) * 100 : 0} ${100 - (committees.length > 0 ? (completed / committees.length) * 100 : 0)}`} strokeLinecap="round" transform="rotate(-90 18 18)" /></svg>
+          <div className="ce-ring-center"><span>{committees.length > 0 ? ((completed / committees.length) * 100).toFixed(0) : 0}%</span><small>Hoàn thành</small></div>
+        </div>
+      </section>
+
+      <div className="ce-stats">
+        <div className="surface-card ce-stat"><Users size={22} color="#4f46e5" /><div><span className="ce-stat-val">{committees.length}</span><span className="ce-stat-label">Tổng hội đồng</span></div></div>
+        <div className="surface-card ce-stat"><CheckCircle size={22} color="#10b981" /><div><span className="ce-stat-val">{completed}</span><span className="ce-stat-label">Đã hoàn thành</span></div></div>
+        <div className="surface-card ce-stat"><Clock size={22} color="#f59e0b" /><div><span className="ce-stat-val">{committees.length - completed}</span><span className="ce-stat-label">Đang chờ</span></div></div>
+        <div className="surface-card ce-stat"><Star size={22} color="#7c3aed" /><div><span className="ce-stat-val">{avgScore}</span><span className="ce-stat-label">Điểm TB</span></div></div>
+      </div>
+
+      {loading ? <div className="ce-loading"><Loader2 size={32} className="ce-spin" color="var(--primary-indigo)" /></div> : committees.length === 0 ? (
+        <div className="surface-card ce-empty"><Users size={48} style={{ opacity: .3 }} /><p>Chưa có hội đồng nào được tạo.</p></div>
+      ) : (
+        <div className="ce-grid">
+          {committees.map(c => (
+            <div key={c.id} className="surface-card ce-card" onClick={() => loadDetail(c.id)}>
+              <div className="ce-card-top">
+                <span className={`ce-conclusion ${c.conclusion === 'Đạt' ? 'pass' : c.conclusion === 'Không đạt' ? 'fail' : 'pending'}`}>{c.conclusion || 'Đang đánh giá'}</span>
+                {c.finalScore != null && <span className="ce-final-sm">{c.finalScore.toFixed(1)}/100</span>}
+              </div>
+              <h3>{c.name}</h3>
+              <p className="ce-card-work">{c.work.title}</p>
+              <div className="ce-card-meta">
+                <span><Users size={13} /> {c.members.length} thành viên</span>
+                {c.meetingDate && <span><Calendar size={13} /> {new Date(c.meetingDate).toLocaleDateString('vi-VN')}</span>}
+                {c.location && <span><MapPin size={13} /> {c.location}</span>}
+              </div>
+              <div className="ce-card-progress">
+                <span>{c._count?.reviews || c.reviews?.length || 0}/{c.members.length} đã chấm</span>
+                <ProgressBar progress={c.members.length > 0 ? ((c._count?.reviews || c.reviews?.length || 0) / c.members.length) * 100 : 0} color="var(--primary-indigo)" height="4px" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create Modal */}
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Tạo Hội đồng mới" subtitle="Thiết lập hội đồng phản biện cho đề tài nghiên cứu" width={700}
+        footer={<>
+          <button className="g-btn secondary" onClick={() => setShowCreate(false)}>Hủy</button>
+          <button className="g-btn primary" onClick={handleCreate} disabled={submitting || !createForm.name || !createForm.workId}>
+            {submitting ? <Loader2 size={14} className="ce-spin" /> : <Plus size={14} />} Tạo hội đồng
+          </button>
+        </>}>
+        <div className="g-form-grid">
+          <div className="g-field"><label>Tên hội đồng *</label><input value={createForm.name} onChange={e => setCreateForm({ ...createForm, name: e.target.value })} placeholder="VD: HĐ Thẩm định đề tài DT-2024" /></div>
+          <div className="g-field"><label>Đề tài nghiên cứu *</label><select value={createForm.workId} onChange={e => setCreateForm({ ...createForm, workId: e.target.value })}><option value="">— Chọn đề tài —</option>{worksList.map(w => <option key={w.id} value={w.id}>{w.title}</option>)}</select></div>
+          <div className="g-field"><label>Ngày họp</label><input type="datetime-local" value={createForm.meetingDate} onChange={e => setCreateForm({ ...createForm, meetingDate: e.target.value })} /></div>
+          <div className="g-field"><label>Địa điểm</label><input value={createForm.location} onChange={e => setCreateForm({ ...createForm, location: e.target.value })} placeholder="VD: Phòng họp A, Tầng 3" /></div>
+          <div className="g-field full"><label>Mô tả</label><textarea value={createForm.description} onChange={e => setCreateForm({ ...createForm, description: e.target.value })} placeholder="Mô tả mục đích hội đồng..." rows={2} /></div>
+          <div className="g-field full">
+            <label>Thành viên hội đồng</label>
+            {createForm.members.map((m, i) => (
+              <div key={i} className="ce-member-form-row">
+                <select value={m.userId} onChange={e => { const ms = [...createForm.members]; ms[i] = { ...ms[i], userId: e.target.value }; setCreateForm({ ...createForm, members: ms }); }}>
+                  <option value="">— Chọn thành viên —</option>
+                  {usersList.filter(u => ['ADMIN', 'REVIEWER', 'LECTURER'].includes(u.role)).map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+                </select>
+                <select value={m.role} onChange={e => { const ms = [...createForm.members]; ms[i] = { ...ms[i], role: e.target.value }; setCreateForm({ ...createForm, members: ms }); }}>
+                  <option value="chair">Chủ tịch</option><option value="secretary">Thư ký</option><option value="reviewer">Phản biện</option><option value="member">Thành viên</option>
+                </select>
+                {createForm.members.length > 1 && <button className="ce-rm-member" onClick={() => setCreateForm({ ...createForm, members: createForm.members.filter((_, j) => j !== i) })}><X size={14} /></button>}
+              </div>
+            ))}
+            <button className="ce-add-member" onClick={() => setCreateForm({ ...createForm, members: [...createForm.members, { userId: '', role: 'reviewer' }] })}><Plus size={13} /> Thêm thành viên</button>
+          </div>
+        </div>
+      </Modal>
 
       <style>{ceStyles}</style>
     </div>
   );
 };
 
-/* ======================== Criterion Slider Component ======================== */
-
-function CriterionSlider({ label, desc, max, value, onChange }: { label: string; desc: string; max: number; value: number; onChange: (v: number) => void }) {
+function Slider({ label, desc, max, value, onChange }: { label: string; desc: string; max: number; value: number; onChange: (v: number) => void }) {
   return (
     <div className="ce-criterion">
-      <div className="ce-criterion-header">
-        <div className="ce-criterion-info">
-          <h4>{label}</h4>
-          <p>{desc}</p>
-        </div>
-        <div className="ce-criterion-score">
-          <span className="ce-current">{value}</span>
-          <span className="ce-max">/ {max}</span>
-        </div>
-      </div>
-      <div className="ce-slider-wrap">
-        <input type="range" min="0" max={max} value={value} onChange={(e) => onChange(parseInt(e.target.value))} className="ce-slider" />
-      </div>
+      <div className="ce-crit-head"><div><h4>{label}</h4><p>{desc}</p></div><div className="ce-crit-score"><span>{value}</span>/{max}</div></div>
+      <input type="range" min="0" max={max} value={value} onChange={e => onChange(+e.target.value)} className="ce-slider" />
     </div>
   );
 }
 
-/* ======================== Styles ======================== */
-
 const ceStyles = `
-  /* Page */
-  .ce-page { display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 3rem; }
-  .ce-loading { display: flex; justify-content: center; padding: 80px; }
+  .ce{display:flex;flex-direction:column;gap:1.25rem;padding-bottom:3rem}
+  .ce-back{background:none;border:none;display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--on-surface-muted);font-weight:700;font-size:.85rem;padding:0}
+  .ce-loading{display:flex;justify-content:center;padding:4rem}
+  .ce-empty{display:flex;flex-direction:column;align-items:center;gap:1rem;padding:4rem!important;text-align:center;color:var(--on-surface-muted)}
+  .ce-muted{color:var(--on-surface-muted);font-size:.85rem}
+  .ce-success{display:flex;align-items:center;gap:8px;background:#d1fae5;color:#065f46;padding:12px 16px;border-radius:12px;font-weight:600;font-size:.875rem}
 
-  /* Hero Banner — matches dashboard */
-  .ce-hero {
-    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%);
-    border-radius: 20px; padding: 2.5rem; display: flex;
-    justify-content: space-between; align-items: center; color: white;
-  }
-  .ce-hero-detail { padding: 2rem 2.5rem; }
-  .ce-hero-left { flex: 1; }
-  .ce-hero-greeting { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-  .ce-hero-greeting h1 { font-size: 1.75rem; font-weight: 800; color: white; }
-  .ce-hero-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 10px; border-radius: 100px;
-    background: rgba(255,255,255,0.15); font-size: 0.7rem; font-weight: 700;
-  }
-  .ce-hero-desc { font-size: 0.9rem; opacity: 0.85; line-height: 1.6; max-width: 520px; margin-bottom: 1.5rem; }
-  .ce-hero-desc strong { color: #a5b4fc; font-weight: 800; }
-  .ce-hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .ce-btn-hero {
-    display: flex; align-items: center; gap: 6px;
-    padding: 10px 18px; border-radius: 10px; font-weight: 700;
-    font-size: 0.8125rem; cursor: pointer; border: none; transition: transform 0.15s;
-    font-family: inherit;
-  }
-  .ce-btn-hero:hover { transform: translateY(-1px); }
-  .ce-btn-hero.primary { background: white; color: #1e1b4b; }
-  .ce-btn-hero.secondary { background: rgba(255,255,255,0.12); color: white; border: 1.5px solid rgba(255,255,255,0.2); }
-  .ce-btn-hero:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-  .ce-btn-back {
-    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
-    color: white; padding: 6px 14px; border-radius: 8px; font-size: 0.75rem;
-    font-weight: 700; cursor: pointer; display: inline-flex; align-items: center;
-    gap: 4px; margin-bottom: 12px; font-family: inherit;
-  }
+  .ce-hero{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
+  .ce-hero-left h1{font-size:1.75rem;font-weight:800;color:#fff;margin-bottom:.375rem}
+  .ce-hero-left p{font-size:.9rem;opacity:.85;margin-bottom:1.25rem}
+  .ce-hero-btn{background:#fff;color:#1e1b4b;border:none;padding:10px 20px;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .ce-hero-ring{position:relative;width:120px;height:120px;flex-shrink:0}
+  .ce-hero-ring svg{width:100%;height:100%}
+  .ce-ring-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+  .ce-ring-center span{display:block;font-size:1.5rem;font-weight:800}
+  .ce-ring-center small{font-size:.6rem;opacity:.7}
 
-  /* Hero ring */
-  .ce-hero-right { flex-shrink: 0; margin-left: 2rem; }
-  .ce-hero-ring { position: relative; width: 140px; height: 140px; }
-  .ce-ring-svg { width: 100%; height: 100%; }
-  .ce-ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
-  .ce-ring-pct { display: block; font-size: 1.75rem; font-weight: 800; }
-  .ce-ring-label { font-size: 0.65rem; opacity: 0.7; font-weight: 600; }
+  .ce-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+  .ce-stat{display:flex;align-items:center;gap:1rem}
+  .ce-stat-val{font-size:1.5rem;font-weight:800;display:block;line-height:1}
+  .ce-stat-label{font-size:.8rem;color:var(--on-surface-muted)}
 
-  /* Stats Grid — matches dashboard */
-  .ce-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-  .ce-stat-card { display: flex; align-items: center; gap: 1rem; transition: transform 0.15s; cursor: default; }
-  .ce-stat-card:hover { transform: translateY(-2px); }
-  .ce-stat-icon {
-    width: 48px; height: 48px; border-radius: 14px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .ce-stat-value { font-size: 1.75rem; font-weight: 800; display: block; line-height: 1; }
-  .ce-stat-label { font-size: 0.8rem; font-weight: 600; color: var(--on-surface-muted); }
-  .ce-stat-sub { font-size: 0.65rem; color: var(--on-surface-variant); }
+  .ce-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem}
+  .ce-card{padding:1.25rem!important;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:.5rem}
+  .ce-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.07)}
+  .ce-card-top{display:flex;justify-content:space-between;align-items:center}
+  .ce-conclusion{padding:3px 10px;border-radius:100px;font-size:.65rem;font-weight:800}
+  .ce-conclusion.pass{background:#d1fae5;color:#059669}.ce-conclusion.fail{background:#fee2e2;color:#dc2626}.ce-conclusion.pending{background:#fef3c7;color:#d97706}
+  .ce-final-sm{font-weight:800;font-size:1rem;color:var(--primary-indigo)}
+  .ce-card h3{font-size:.9375rem;font-weight:700}
+  .ce-card-work{font-size:.8rem;color:var(--on-surface-muted);line-height:1.4}
+  .ce-card-meta{display:flex;gap:10px;font-size:.7rem;color:var(--on-surface-muted);flex-wrap:wrap}
+  .ce-card-meta span{display:flex;align-items:center;gap:3px}
+  .ce-card-progress{margin-top:auto}
+  .ce-card-progress span{font-size:.65rem;color:var(--on-surface-muted);font-weight:600;display:block;margin-bottom:3px}
 
-  /* Committee Grid */
-  .ce-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem; }
-  .ce-card {
-    cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative;
-    overflow: hidden;
-  }
-  .ce-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.08); }
-  .ce-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  .ce-card-name { font-size: 1rem; font-weight: 700; margin-bottom: 4px; color: var(--on-surface); }
-  .ce-card-work { font-size: 0.8125rem; color: var(--on-surface-muted); line-height: 1.4; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .ce-card-meta { display: flex; gap: 12px; font-size: 0.75rem; color: var(--on-surface-muted); flex-wrap: wrap; margin-bottom: 12px; }
-  .ce-card-meta span { display: flex; align-items: center; gap: 4px; }
-  .ce-card-progress { border-top: 1px solid var(--surface-variant, #f1f5f9); padding-top: 12px; }
-  .ce-progress-header { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--on-surface-muted); font-weight: 600; margin-bottom: 6px; }
-  .ce-progress-pct { font-weight: 800; color: #4f46e5; }
-  .ce-card-arrow { position: absolute; top: 1.5rem; right: 1.5rem; color: var(--on-surface-variant, #cbd5e1); transition: color 0.15s; }
-  .ce-card:hover .ce-card-arrow { color: #4f46e5; }
+  .ce-member-form-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+  .ce-member-form-row select{flex:1;padding:.5rem;border:1.5px solid var(--surface-variant);border-radius:6px;font-size:.8rem;outline:none}
+  .ce-rm-member{background:none;border:none;color:var(--error);cursor:pointer;padding:2px}
+  .ce-add-member{background:none;border:1.5px dashed var(--surface-variant);border-radius:8px;padding:7px;cursor:pointer;font-size:.8rem;font-weight:600;color:var(--primary-indigo);display:flex;align-items:center;gap:4px;margin-top:4px;width:100%;justify-content:center}
 
-  /* Badges */
-  .ce-badge {
-    padding: 3px 12px; border-radius: 100px; font-size: 0.7rem; font-weight: 800;
-    letter-spacing: 0.01em;
-  }
-  .ce-badge.pass { background: #d1fae5; color: #059669; }
-  .ce-badge.fail { background: #fee2e2; color: #dc2626; }
-  .ce-badge.pending { background: #fef3c7; color: #d97706; }
-  .ce-final-score { font-weight: 800; font-size: 1.125rem; color: #4f46e5; }
-  .ce-score-max { font-size: 0.75rem; font-weight: 600; color: var(--on-surface-muted); }
+  /* Detail */
+  .ce-detail-grid{display:grid;grid-template-columns:1fr 300px;gap:1.5rem;align-items:start}
+  .ce-main{display:flex;flex-direction:column;gap:1.25rem}
+  .ce-side{display:flex;flex-direction:column;gap:1rem}
 
-  /* Empty state */
-  .ce-empty { text-align: center; padding: 4rem !important; color: var(--on-surface-muted); }
+  .ce-project{display:flex;gap:1.5rem;padding:1.5rem!important}
+  .ce-proj-visual{width:160px;height:180px;background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:14px;position:relative;overflow:hidden;flex-shrink:0}
+  .ce-proj-overlay{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);padding:.75rem;color:#fff}
+  .ce-proj-overlay small{font-size:.55rem;opacity:.7;display:block}
+  .ce-proj-overlay strong{font-size:.8rem}
+  .ce-proj-info{flex:1}
+  .ce-proj-info h2{font-size:1.25rem;font-weight:800;line-height:1.3;color:var(--primary-indigo);margin-bottom:.5rem}
+  .ce-proj-abs{font-size:.8rem;color:var(--on-surface-muted);line-height:1.5;margin-bottom:.75rem}
+  .ce-proj-meta{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;padding-top:.75rem;border-top:1px solid var(--surface-variant)}
+  .ce-proj-meta small{font-size:.6rem;font-weight:700;color:var(--on-surface-muted);text-transform:uppercase;display:block;margin-bottom:2px}
+  .ce-proj-meta strong{font-size:.8rem}
 
-  /* Modal */
-  .ce-modal-overlay {
-    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(4px); display: flex; align-items: center;
-    justify-content: center; z-index: 1000;
-  }
-  .ce-modal { width: 580px; max-height: 85vh; overflow-y: auto; padding: 2rem !important; border-radius: 20px !important; }
-  .ce-modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
-  .ce-modal-header h2 { font-size: 1.25rem; font-weight: 800; }
-  .ce-modal-sub { font-size: 0.8125rem; color: var(--on-surface-muted); margin-top: 2px; }
-  .ce-btn-close { background: var(--surface-low, #f1f5f9); border: none; cursor: pointer; color: var(--on-surface-muted); padding: 6px; border-radius: 8px; display: flex; }
-  .ce-btn-close:hover { background: var(--surface-variant, #e2e8f0); }
+  .ce-score-card{padding:1.5rem!important}
+  .ce-score-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+  .ce-score-title{display:flex;align-items:center;gap:8px;font-weight:700}
+  .ce-total-badge{background:var(--signature-gradient);color:#fff;padding:6px 14px;border-radius:10px;font-size:.85rem}
+  .ce-total-badge small{font-size:.55rem;font-weight:700;opacity:.8;margin-right:2px}
+  .ce-total-badge strong{font-size:1.125rem;font-weight:800}
+  .ce-total-badge span{font-size:.7rem;opacity:.7}
+  .ce-criteria{display:flex;flex-direction:column;gap:1.5rem;margin-bottom:1.5rem}
+  .ce-criterion{}
+  .ce-crit-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:.75rem}
+  .ce-crit-head h4{font-size:.9rem;font-weight:700;margin-bottom:2px}
+  .ce-crit-head p{font-size:.75rem;color:var(--on-surface-muted)}
+  .ce-crit-score{background:var(--surface-low);padding:4px 12px;border-radius:8px;font-size:.8rem}
+  .ce-crit-score span{font-size:1.25rem;font-weight:800;color:var(--primary-indigo)}
+  .ce-slider{-webkit-appearance:none;width:100%;height:8px;border-radius:100px;background:var(--surface-low);outline:none;cursor:pointer}
+  .ce-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--primary-indigo);border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+  .ce-comment-label{font-weight:700;margin-bottom:.5rem}
+  .ce-textarea{width:100%;height:100px;background:var(--surface-low);border:2px solid transparent;border-radius:12px;padding:1rem;font-size:.875rem;font-family:inherit;resize:none;outline:none}
+  .ce-textarea:focus{border-color:var(--primary-indigo)}
+  .ce-rec-row{display:flex;gap:8px;margin-top:1rem}
+  .ce-rec-btn{flex:1;padding:10px;border-radius:10px;border:2px solid var(--surface-variant);background:var(--surface-lowest);font-weight:700;font-size:.8rem;cursor:pointer;font-family:inherit;color:var(--on-surface-muted);transition:all .15s}
+  .ce-submit-btn{width:100%;margin-top:1rem;background:var(--signature-gradient);color:#fff;border:none;padding:12px;border-radius:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-size:.875rem}
+  .ce-submit-btn:disabled{opacity:.5;cursor:not-allowed}
 
-  .ce-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  .ce-form-field { display: flex; flex-direction: column; gap: 0.375rem; }
-  .ce-full-width { grid-column: 1 / -1; }
-  .ce-required { color: #dc2626; }
-  .ce-form-field label { font-size: 0.75rem; font-weight: 700; color: var(--on-surface-muted); }
-  .ce-form-field input, .ce-form-field textarea, .ce-form-field select {
-    padding: 0.625rem 0.875rem; border: 1.5px solid var(--surface-variant, #e2e8f0);
-    border-radius: 10px; font-size: 0.875rem; font-family: inherit; outline: none;
-    background: var(--surface-lowest, white); transition: border-color 0.15s;
-  }
-  .ce-form-field input:focus, .ce-form-field textarea:focus, .ce-form-field select:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.08); }
-  .ce-member-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
-  .ce-member-select {
-    flex: 1; padding: 0.5rem 0.75rem; border: 1.5px solid var(--surface-variant, #e2e8f0);
-    border-radius: 8px; font-size: 0.8125rem; outline: none; font-family: inherit;
-    background: var(--surface-lowest, white);
-  }
-  .ce-role-select {
-    width: 130px; padding: 0.5rem 0.75rem; border: 1.5px solid var(--surface-variant, #e2e8f0);
-    border-radius: 8px; font-size: 0.8125rem; outline: none; font-family: inherit;
-    background: var(--surface-lowest, white);
-  }
-  .ce-member-select:focus, .ce-role-select:focus { border-color: #4f46e5; }
-  .ce-btn-remove { background: none; border: none; color: #dc2626; cursor: pointer; padding: 4px; display: flex; }
-  .ce-btn-add-member {
-    background: none; border: 1.5px dashed var(--surface-variant, #e2e8f0);
-    border-radius: 10px; padding: 10px; cursor: pointer; font-size: 0.8125rem;
-    font-weight: 600; color: #4f46e5; display: flex; align-items: center;
-    gap: 4px; margin-top: 4px; font-family: inherit; transition: border-color 0.15s;
-  }
-  .ce-btn-add-member:hover { border-color: #4f46e5; background: #4f46e508; }
+  .ce-reviews-card{padding:1.5rem!important}
+  .ce-reviews-card h3{display:flex;align-items:center;gap:8px;font-size:.9375rem;font-weight:700;margin-bottom:1rem}
+  .ce-final{display:flex;align-items:center;gap:1rem;padding:1rem;border-radius:12px;margin-bottom:1rem}
+  .ce-final.pass{background:#d1fae5;color:#065f46}.ce-final.fail{background:#fee2e2;color:#991b1b}.ce-final.warn{background:#fef3c7;color:#92400e}
+  .ce-final-score{font-size:1.75rem;font-weight:800}
+  .ce-final strong{display:block;font-size:.9rem}
+  .ce-final p{font-size:.75rem;opacity:.7}
+  .ce-review-list{display:flex;flex-direction:column;gap:.75rem}
+  .ce-review-item{padding:1rem;background:var(--surface-low);border-radius:10px}
+  .ce-review-head{display:flex;justify-content:space-between;margin-bottom:.5rem}
+  .ce-review-head span{font-weight:600;font-size:.85rem}
+  .ce-review-head strong{font-weight:800;color:var(--primary-indigo);font-size:1rem}
+  .ce-review-scores{display:flex;gap:10px;font-size:.75rem;margin-bottom:.5rem}
+  .ce-review-comment{font-size:.8rem;color:var(--on-surface-muted);line-height:1.5}
+  .ce-rec-pill{display:inline-block;margin-top:.375rem;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:4px}
+  .ce-rec-pill.accept{background:#d1fae5;color:#059669}.ce-rec-pill.reject{background:#fee2e2;color:#dc2626}.ce-rec-pill.revise{background:#fef3c7;color:#d97706}
 
-  .ce-modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--surface-variant, #f1f5f9); }
-  .ce-btn-cancel {
-    background: var(--surface-lowest, white); border: 1.5px solid var(--surface-variant, #e2e8f0);
-    padding: 0.625rem 1.25rem; border-radius: 10px; font-weight: 700;
-    cursor: pointer; font-family: inherit; font-size: 0.8125rem;
-  }
-  .ce-btn-submit {
-    background: #4f46e5; color: white; border: none;
-    padding: 0.625rem 1.5rem; border-radius: 10px; font-weight: 700;
-    cursor: pointer; display: flex; align-items: center; gap: 0.5rem;
-    font-family: inherit; font-size: 0.8125rem; transition: background 0.15s;
-  }
-  .ce-btn-submit:hover { background: #4338ca; }
-  .ce-btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ce-ai-card{background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;border-radius:16px;padding:1.25rem}
+  .ce-ai-head{display:flex;align-items:center;gap:6px;font-weight:800;font-size:.75rem;margin-bottom:.75rem}
+  .ce-ai-hint{font-size:.8rem;opacity:.7}
+  .ce-expert-list{display:flex;flex-direction:column;gap:.5rem}
+  .ce-expert{display:flex;align-items:center;gap:.625rem;background:rgba(255,255,255,.08);border-radius:10px;padding:.5rem;position:relative}
+  .ce-expert-avatar{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;flex-shrink:0}
+  .ce-expert-info h5{font-size:.75rem;font-weight:700;margin-bottom:1px}
+  .ce-expert-info p{font-size:.6rem;opacity:.6}
+  .ce-match{position:absolute;right:.5rem;top:.5rem;font-size:.6rem;font-weight:800;color:#10b981}
 
-  /* Detail Grid */
-  .ce-detail-grid { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; align-items: start; }
-  .ce-main-col { display: flex; flex-direction: column; gap: 1.5rem; }
-  .ce-sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
+  .ce-progress-card{padding:1.25rem!important}
+  .ce-progress-card h4{font-size:.875rem;font-weight:700;margin-bottom:.75rem}
+  .ce-prog-stats{display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:.375rem}
+  .ce-member-list{margin-top:.75rem;display:flex;flex-direction:column;gap:.375rem}
+  .ce-member-row{display:flex;align-items:center;gap:6px;font-size:.8rem}
+  .ce-member-row small{color:var(--on-surface-muted);font-size:.65rem}
+  .ce-member-dot{width:24px;height:24px;border-radius:50%;background:var(--surface-low);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:var(--on-surface-muted);flex-shrink:0}
+  .ce-member-dot.done{background:#d1fae5;color:#059669}
 
-  /* Success banner */
-  .ce-success-banner {
-    display: flex; align-items: center; gap: 0.5rem;
-    background: #d1fae5; color: #065f46; padding: 0.875rem 1.25rem;
-    border-radius: 12px; font-weight: 600; font-size: 0.875rem;
-  }
+  .ce-back-btn{width:100%;padding:10px;border-radius:10px;border:1px solid var(--surface-variant);background:var(--surface-lowest);font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-size:.8rem}
+  .ce-submit-side{width:100%;padding:10px;border-radius:10px;background:var(--primary-indigo);color:#fff;border:none;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-size:.8rem}
+  .ce-submit-side:disabled{opacity:.5;cursor:not-allowed}
 
-  /* Project card */
-  .ce-project-card { display: flex; gap: 2rem; }
-  .ce-project-visual { width: 200px; flex-shrink: 0; }
-  .ce-visual-bg {
-    width: 100%; height: 240px; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-    border-radius: 16px; position: relative; overflow: hidden;
-  }
-  .ce-visual-overlay {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
-    padding: 1rem; color: white; display: flex; flex-direction: column; gap: 0.25rem;
-  }
-  .ce-visual-tag { font-size: 0.6rem; font-weight: 600; opacity: 0.8; letter-spacing: 0.05em; }
-  .ce-visual-overlay strong { font-size: 0.875rem; }
-  .ce-project-info { display: flex; flex-direction: column; gap: 1rem; flex: 1; }
-  .ce-project-title { font-size: 1.375rem; font-weight: 800; color: #4f46e5; line-height: 1.3; }
-  .ce-project-abstract { color: var(--on-surface-variant); line-height: 1.6; font-size: 0.875rem; }
-  .ce-meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; padding-top: 1rem; border-top: 1px solid var(--surface-variant, #f1f5f9); }
-  .ce-meta-item { display: flex; flex-direction: column; gap: 0.375rem; }
-  .ce-meta-label { font-size: 0.65rem; font-weight: 700; color: var(--on-surface-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-  .ce-meta-item strong { font-size: 0.8125rem; }
+  .ce-spin{animation:ce-spin 1s linear infinite}
+  @keyframes ce-spin{to{transform:rotate(360deg)}}
 
-  /* Score sheet */
-  .ce-score-card { padding: 2rem !important; }
-  .ce-score-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-  .ce-score-title-row { display: flex; align-items: center; gap: 0.75rem; }
-  .ce-icon-wrap {
-    background: #eef2ff; color: #4f46e5; padding: 0.625rem;
-    border-radius: 12px; display: flex; align-items: center; justify-content: center;
-  }
-  .ce-score-title-row h3 { font-size: 0.9375rem; font-weight: 700; }
-  .ce-score-subtitle { font-size: 0.75rem; color: var(--on-surface-muted); margin-top: 2px; }
-  .ce-total-badge {
-    background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%);
-    color: white; padding: 0.5rem 1.25rem; border-radius: 12px;
-    display: flex; align-items: baseline; gap: 0.375rem;
-  }
-  .ce-total-label { font-size: 0.6rem; font-weight: 800; opacity: 0.9; letter-spacing: 0.03em; }
-  .ce-total-value { font-size: 1.25rem; font-weight: 800; }
-  .ce-total-max { font-size: 0.75rem; font-weight: 700; opacity: 0.7; }
-
-  .ce-criteria-list { display: flex; flex-direction: column; gap: 2rem; margin-bottom: 2rem; }
-  .ce-criterion-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem; }
-  .ce-criterion-info h4 { font-size: 0.9375rem; font-weight: 700; margin-bottom: 0.25rem; }
-  .ce-criterion-info p { font-size: 0.8125rem; color: var(--on-surface-muted); }
-  .ce-criterion-score {
-    background: var(--surface-low, #f8fafc); padding: 0.5rem 1rem;
-    border-radius: 10px; display: flex; align-items: baseline; gap: 0.25rem;
-  }
-  .ce-current { font-size: 1.5rem; font-weight: 800; color: #4f46e5; }
-  .ce-max { font-weight: 700; color: var(--on-surface-muted); }
-  .ce-slider-wrap { padding: 0.25rem 0; }
-  .ce-slider {
-    -webkit-appearance: none; width: 100%; height: 10px;
-    border-radius: 100px; background: var(--surface-low, #f1f5f9); outline: none; cursor: pointer;
-  }
-  .ce-slider::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
-    background: #4f46e5; border: 3px solid white;
-    box-shadow: 0 2px 8px rgba(79,70,229,0.3);
-  }
-  .ce-slider::-moz-range-thumb {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: #4f46e5; border: 3px solid white;
-    box-shadow: 0 2px 8px rgba(79,70,229,0.3);
-  }
-
-  .ce-comment-section { margin-bottom: 1rem; }
-  .ce-comment-section h4 { margin-bottom: 0.75rem; font-size: 0.875rem; font-weight: 700; }
-  .ce-textarea {
-    width: 100%; height: 120px; background: var(--surface-low, #f8fafc);
-    border: 2px solid var(--surface-variant, #f1f5f9); border-radius: 12px;
-    padding: 1rem; font-size: 0.9375rem; font-family: inherit;
-    resize: none; outline: none; transition: border-color 0.15s;
-    box-sizing: border-box;
-  }
-  .ce-textarea:focus { border-color: #4f46e5; }
-
-  .ce-recommendation-section { margin-top: 1rem; }
-  .ce-rec-label { font-size: 0.875rem; font-weight: 700; margin-bottom: 10px; display: block; }
-  .ce-rec-buttons { display: flex; gap: 8px; }
-  .ce-rec-btn {
-    flex: 1; padding: 12px; border-radius: 10px; border: 2px solid var(--surface-variant, #e2e8f0);
-    font-weight: 700; font-size: 0.8125rem; cursor: pointer; font-family: inherit;
-    transition: all 0.15s;
-  }
-  .ce-rec-btn:hover { transform: translateY(-1px); }
-
-  /* Reviews */
-  .ce-reviews-card { padding: 2rem !important; }
-  .ce-reviews-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; }
-  .ce-reviews-header h3 { font-size: 0.9375rem; font-weight: 700; }
-
-  .ce-conclusion-banner {
-    display: flex; align-items: center; gap: 16px; margin-bottom: 20px;
-    padding: 1.25rem; border-radius: 14px;
-  }
-  .ce-conclusion-banner.pass { background: #d1fae5; }
-  .ce-conclusion-banner.fail { background: #fee2e2; }
-  .ce-conclusion-banner.pending { background: #fef3c7; }
-  .ce-conclusion-score { font-size: 2rem; font-weight: 800; }
-  .ce-conclusion-banner.pass .ce-conclusion-score { color: #059669; }
-  .ce-conclusion-banner.fail .ce-conclusion-score { color: #dc2626; }
-  .ce-conclusion-banner.pending .ce-conclusion-score { color: #d97706; }
-  .ce-conclusion-label { font-weight: 700; font-size: 1rem; }
-  .ce-conclusion-sub { font-size: 0.8125rem; color: var(--on-surface-muted); margin-top: 2px; }
-
-  .ce-empty-text { color: var(--on-surface-muted); text-align: center; padding: 2rem; font-size: 0.8125rem; }
-
-  .ce-review-list { display: flex; flex-direction: column; gap: 12px; }
-  .ce-review-item { padding: 1.25rem; background: var(--surface-low, #f8fafc); border-radius: 14px; }
-  .ce-review-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  .ce-reviewer-info { display: flex; align-items: center; gap: 10px; }
-  .ce-reviewer-avatar {
-    width: 32px; height: 32px; border-radius: 10px; background: #eef2ff;
-    color: #4f46e5; display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 0.8rem;
-  }
-  .ce-reviewer-name { font-weight: 700; font-size: 0.875rem; }
-  .ce-review-score { font-weight: 800; color: #4f46e5; font-size: 1.25rem; }
-  .ce-score-unit { font-size: 0.8rem; font-weight: 600; color: var(--on-surface-muted); }
-  .ce-review-scores { display: flex; gap: 16px; font-size: 0.8rem; margin-bottom: 10px; color: var(--on-surface-muted); }
-  .ce-review-scores b { color: var(--on-surface); }
-  .ce-review-comment { font-size: 0.8125rem; color: var(--on-surface-muted); line-height: 1.6; margin-bottom: 8px; }
-  .ce-rec-pill {
-    display: inline-block; font-size: 0.7rem; font-weight: 700;
-    padding: 3px 10px; border-radius: 6px;
-  }
-  .ce-rec-pill.accept { background: #d1fae5; color: #059669; }
-  .ce-rec-pill.reject { background: #fee2e2; color: #dc2626; }
-  .ce-rec-pill.revise { background: #fef3c7; color: #d97706; }
-
-  /* AI Sidebar */
-  .ce-ai-card {
-    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-    color: white; border-radius: 20px; padding: 1.5rem;
-    box-shadow: 0 20px 40px -10px rgba(30,27,75,0.3);
-  }
-  .ce-ai-header {
-    display: flex; align-items: center; gap: 0.5rem;
-    font-weight: 800; font-size: 0.7rem; letter-spacing: 0.03em; margin-bottom: 1rem;
-  }
-  .ce-ai-loading { text-align: center; padding: 1rem; }
-  .ce-ai-hint { font-size: 0.8rem; opacity: 0.8; line-height: 1.5; margin-bottom: 1rem; }
-  .ce-expert-list { display: flex; flex-direction: column; gap: 0.5rem; }
-  .ce-expert-item {
-    background: rgba(255,255,255,0.08); border-radius: 12px; padding: 0.75rem;
-    display: flex; align-items: center; gap: 0.75rem; position: relative;
-    transition: background 0.15s;
-  }
-  .ce-expert-item:hover { background: rgba(255,255,255,0.12); }
-  .ce-expert-avatar {
-    width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.2);
-    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 0.8rem;
-  }
-  .ce-expert-info { flex: 1; min-width: 0; }
-  .ce-expert-info h5 { font-size: 0.8rem; font-weight: 700; margin-bottom: 2px; }
-  .ce-expert-info p { font-size: 0.65rem; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ce-match-tag { font-size: 0.65rem; font-weight: 800; color: #10b981; flex-shrink: 0; }
-
-  /* Council Progress */
-  .ce-progress-card { padding: 1.5rem !important; }
-  .ce-progress-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; }
-  .ce-progress-title-row h3 { font-size: 0.9375rem; font-weight: 700; }
-  .ce-progress-stats { display: flex; justify-content: space-between; font-size: 0.8125rem; margin-bottom: 0.5rem; }
-  .ce-progress-stats span { color: var(--on-surface-muted); }
-  .ce-progress-stats strong { color: #4f46e5; }
-  .ce-council-members { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--surface-variant, #f1f5f9); }
-  .ce-section-label { font-size: 0.625rem; font-weight: 800; color: var(--on-surface-muted); display: block; margin-bottom: 0.75rem; letter-spacing: 0.05em; }
-  .ce-member-list { display: flex; flex-direction: column; gap: 8px; }
-  .ce-member-item { display: flex; align-items: center; gap: 10px; font-size: 0.8125rem; }
-  .ce-member-avatar {
-    width: 30px; height: 30px; border-radius: 50%; display: flex;
-    align-items: center; justify-content: center; font-size: 0.7rem;
-    font-weight: 700; background: var(--surface-low, #f1f5f9);
-    color: var(--on-surface-muted); flex-shrink: 0;
-  }
-  .ce-member-avatar.done { background: #d1fae5; color: #059669; }
-  .ce-member-detail { flex: 1; min-width: 0; }
-  .ce-member-name { font-weight: 600; display: block; }
-  .ce-member-role { font-size: 0.7rem; color: var(--on-surface-muted); }
-
-  /* Sidebar actions */
-  .ce-sidebar-actions { display: flex; flex-direction: column; gap: 0.75rem; }
-  .ce-btn-back-sidebar {
-    background: var(--surface-lowest, white); border: 1.5px solid var(--surface-variant, #e2e8f0);
-    padding: 0.875rem; border-radius: 12px; font-weight: 700; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-    font-family: inherit; font-size: 0.8125rem; transition: all 0.15s;
-  }
-  .ce-btn-back-sidebar:hover { border-color: #4f46e5; color: #4f46e5; }
-  .ce-btn-submit-sidebar {
-    background: #4f46e5; color: white; border: none;
-    padding: 0.875rem; border-radius: 12px; font-weight: 700;
-    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-    cursor: pointer; font-family: inherit; font-size: 0.8125rem;
-    box-shadow: 0 8px 20px -5px rgba(79,70,229,0.3); transition: all 0.15s;
-  }
-  .ce-btn-submit-sidebar:hover { background: #4338ca; transform: translateY(-1px); }
-  .ce-btn-submit-sidebar:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-  /* Spinner */
-  .ce-spin { animation: ce-spin 1s linear infinite; }
-  @keyframes ce-spin { to { transform: rotate(360deg); } }
-
-  /* Responsive */
-  @media (max-width: 1200px) {
-    .ce-detail-grid { grid-template-columns: 1fr; }
-    .ce-stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .ce-hero { flex-direction: column; text-align: center; }
-    .ce-hero-right { margin: 1.5rem 0 0; }
-    .ce-hero-actions { justify-content: center; }
-    .ce-hero-desc { max-width: 100%; }
-  }
-  @media (max-width: 768px) {
-    .ce-stats-grid { grid-template-columns: 1fr 1fr; }
-    .ce-grid { grid-template-columns: 1fr; }
-    .ce-project-card { flex-direction: column; }
-    .ce-project-visual { width: 100%; }
-    .ce-visual-bg { height: 160px; }
-    .ce-form-grid { grid-template-columns: 1fr; }
-    .ce-modal { width: calc(100vw - 2rem); }
-    .ce-hero { padding: 1.5rem; }
-    .ce-hero-greeting h1 { font-size: 1.375rem; }
-  }
+  @media(max-width:1024px){.ce-detail-grid{grid-template-columns:1fr}.ce-stats{grid-template-columns:repeat(2,1fr)}.ce-hero{flex-direction:column;text-align:center}.ce-hero-ring{margin-top:1rem}.ce-project{flex-direction:column}.ce-proj-visual{width:100%;height:120px}}
 `;

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { callDbFunction } from '../prisma/db-functions.js';
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:8000';
 
@@ -150,9 +151,17 @@ export class AiService {
   }
 
   /**
-   * Analyze research trends (stays in NestJS - simple DB queries).
+   * Analyze research trends.
+   * PostgreSQL function (1 query) with JS fallback.
    */
   async analyzeTrends() {
+    const fast = await callDbFunction<Record<string, unknown>>(
+      this.prisma,
+      'fn_research_trends',
+    );
+    if (fast) return fast;
+
+    // Fallback
     const works = await this.prisma.scientificWork.findMany({
       select: { keywords: true, createdAt: true, type: true, level: true },
     });

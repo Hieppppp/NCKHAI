@@ -1,6 +1,6 @@
 # NCKH AI - Hệ thống Quản lý Công trình Khoa học cho Trường Đại học
 
-> Đề tài: **Xây dựng phần mềm quản lý công trình khoa học cho trường đại học**, tích hợp AI hỗ trợ OCR, kiểm tra đạo văn, đề xuất phản biện.
+> Đề tài: **Xây dựng phần mềm quản lý công trình khoa học cho trường đại học**, tích hợp AI hỗ trợ OCR, kiểm tra đạo văn, đề xuất phản biện, quy đổi giờ chuẩn NCKH.
 
 ## Kiến trúc hệ thống
 
@@ -73,11 +73,6 @@ docker compose ps
 | **Ollama (local)** | http://localhost:11434 |
 | **PostgreSQL** | localhost:5433 |
 
-> **Lưu ý:** Các port đã được đổi để tránh xung đột với local PHP/Ollama:
-> - AI Service: 8001 (thay vì 8000)
-> - MinIO: 9002/9003 (thay vì 9000/9001)
-> - Ollama: chạy local trên 11434 (không dùng Docker)
-
 ## Tài khoản demo
 
 | Vai trò | Email | Mật khẩu |
@@ -88,169 +83,215 @@ docker compose ps
 | Giảng viên | `lecturer@nckhai.vn` | `lecturer123` |
 | Sinh viên | `student@nckhai.vn` | `user123` |
 
-## Tính năng
+## Tính năng chính
 
-### Nghiệp vụ cốt lõi
-- Đăng ký, đăng nhập, phân quyền (Admin / Reviewer / Lecturer / Student)
-- Quản lý người dùng (Admin CRUD, gán vai trò)
-- Quản lý công trình khoa học (CRUD, tìm kiếm, lọc)
-- Quy trình xét duyệt tự động (Workflow engine theo cấp: Trường / Bộ / Nhà nước)
-- Hội đồng khoa học (tạo hội đồng, phân công, chấm điểm 3 tiêu chí)
-- Hệ thống thông báo (in-app notifications)
-- Dashboard thống kê real-time
+### 1. Bảng điều khiển (Dashboard)
+- Hero banner với lời chào, role badge, % hoàn thành
+- 4 thẻ thống kê: tổng công trình, chờ xử lý, đã nghiệm thu, người dùng
+- 6 quick links nhanh đến các module
+- Phân bố trạng thái (bar chart), bảng công trình gần đây
+- Sidebar: cấp đề tài, loại hình, thông báo mới, gợi ý AI
 
-### Công bố khoa học (Mới)
-- Upload file → AI OCR trích xuất tự động (title, authors, abstract, keywords)
-- Xem trước tài liệu + confidence score
-- Chỉnh sửa thủ công kết quả AI
-- Xác nhận & Lưu trữ → tự động thêm vào Thư viện số
+### 2. Quản lý Đề tài NCKH
+- Đăng ký đề tài mới (CRUD đầy đủ)
+- Toggle List/Grid view, search, bộ lọc 3 dropdown (Trạng thái, Loại hình, Cấp độ)
+- Chi tiết đề tài: thông tin, workflow xét duyệt, AI đề xuất phản biện, nhận xét, file đính kèm
+- Quy trình xét duyệt tự động theo cấp (Trường / Bộ / Nhà nước)
+- Admin chuyển trạng thái: DRAFT → SUBMITTED → IN_PROGRESS → REVIEW → ACCEPTED
 
-### Kho lưu trữ số Thông minh (Mới)
-- Tìm kiếm full-text (tên bài, tác giả, từ khóa, tags)
-- Lọc nâng cao theo loại tài liệu, cấp độ
-- AI Score cho từng tài liệu
-- Từ khóa phổ biến (sidebar tags)
-- Widget chat AI trợ lý thư viện
-- Đếm lượt xem, lượt tải
+### 3. Công bố Khoa học
+- 4 chế độ xem: List, Upload, Detail, Edit
+- Upload PDF → AI tự động OCR trích xuất: tiêu đề, tác giả, tóm tắt, từ khóa
+- Preview tài liệu gốc + confidence score + engine info
+- Chỉnh sửa kết quả AI, thêm DOI/ISSN
+- Xác nhận → tự động thêm vào Thư viện số
+- Search/filter/pagination, trạng thái DRAFT → CONFIRMED → PUBLISHED
+- Copy BibTeX 1 click
 
-### Quản lý Kinh phí & Khen thưởng (Mới)
-- Dashboard tổng quan: tổng ngân sách, đã giải ngân, đề tài đang thực hiện, khen thưởng
-- Phân bổ ngân sách theo Khoa (biểu đồ donut)
-- Theo dõi giao dịch giải ngân (tạo, duyệt, hoàn thành)
-- Tiến độ giải ngân (progress bar + danh sách)
-- Quyết định khen thưởng (Tiền mặt, Bằng khen, Giấy khen)
-- Công bố khoa học tiêu biểu
+### 4. Hội đồng Đánh giá
+- Hero banner + % completion ring + 4 stats cards
+- Grid cards: tên hội đồng, đề tài, ngày họp, tiến độ chấm, kết luận
+- Tạo hội đồng: dropdown chọn đề tài + thành viên (không nhập ID thủ công)
+- Phiếu đánh giá điện tử: 3 tiêu chí slider (Đổi mới/40, Khả thi/30, Tác động/30)
+- Đề xuất: Chấp nhận / Yêu cầu chỉnh sửa / Từ chối
+- AI gợi ý chuyên gia phản biện dựa trên keyword matching
+- Tiến độ hội đồng: danh sách thành viên + trạng thái đã chấm
 
-### AI Features
-- **OCR** - Tesseract (tiếng Việt + Anh) với bounding box annotation
-- **PDF Extract** - PyPDF2 text + pdf2image cho scanned PDF
-- **Trích xuất metadata** - Tự động tìm title, authors, abstract, keywords
-- **Kiểm tra đạo văn** - Cosine similarity (TF-IDF) so với kho nội bộ
-- **Đề xuất phản biện** - Matching chuyên gia dựa trên keyword + similarity
-- **Xu hướng nghiên cứu** - Phân tích keyword frequency, phân bố loại/cấp
-- **LLM local** - Ollama (qwen2.5:3b) cho tóm tắt, chatbot, smart extraction
-- **Upload MinIO** - Lưu file S3-compatible, presigned URL download
+### 5. Quy đổi Giờ chuẩn NCKH (Tính năng đặc biệt)
 
-### Phân quyền
+> Giải quyết "nỗi khổ quyết toán giờ NCKH" - giảm 90% thời gian đối soát thủ công
+
+**3 Tab chức năng:**
+
+| Tab | Chức năng |
+|-----|-----------|
+| **Giờ chuẩn của tôi** | Ring chart %, 4 stats, trạng thái ĐẠT/THIẾU, chi tiết điểm từng nguồn |
+| **Tổng hợp toàn trường** (Admin) | Thống kê, bảng theo Khoa, ranking xếp hạng giảng viên |
+| **Danh mục tạp chí** | Search/filter 15+ tạp chí Scopus/HĐGSNN, Quartile, Impact Factor |
+
+**Hệ số quy đổi theo Hội đồng Giáo sư Nhà nước:**
+
+| Nguồn điểm | Hệ số |
+|-------------|-------|
+| Bài báo Scopus Q1 | 2.0 điểm |
+| Bài báo Scopus Q2 | 1.5 điểm |
+| Bài báo Scopus Q3 | 1.0 điểm |
+| Bài báo Scopus Q4 | 0.75 điểm |
+| Tạp chí HĐGSNN | 1.0 điểm |
+| Tạp chí trong nước | 0.5 điểm |
+| Đề tài cấp Nhà nước (CN) | 100 điểm |
+| Đề tài cấp Bộ (CN) | 50 điểm |
+| Đề tài cấp Trường (CN) | 25 điểm |
+| Phản biện khoa học | 2 điểm/lần |
+
+**Giá trị thực tiễn:**
+
+| Đối tượng | Giá trị |
+|-----------|---------|
+| **Giảng viên** | Biết ngay đạt bao nhiêu điểm, thiếu bao nhiêu để bổ sung |
+| **Phòng QLKH** | Tự động tính, không cần lật từng tờ giấy đối chiếu Q1/Q2 |
+| **Ban giám hiệu** | Bảng xếp hạng, thống kê theo Khoa, dữ liệu cho kiểm định |
+
+### 6. Kinh phí & Khen thưởng
+- Hero banner + progress ring % giải ngân
+- 4 stats: tổng ngân sách, đã giải ngân, đề tài đang thực hiện, khen thưởng
+- Phân bổ ngân sách theo Khoa (donut chart SVG)
+- Bảng giao dịch: Giải ngân / Phân bổ / Hoàn trả + Duyệt/Từ chối inline (Admin)
+- Quyết định khen thưởng: Tiền mặt / Bằng khen / Giấy khen + Duyệt/Trao thưởng
+- Dropdown chọn ngân sách, đề tài, người nhận (không nhập ID)
+- Tình trạng xử lý: Chờ duyệt / Đã duyệt / Hoàn thành
+
+### 7. Thư viện số Thông minh
+- Hero banner + search embedded + stats (tổng tài liệu, lượt xem, lượt tải)
+- Lọc theo loại tài liệu, cấp độ
+- Card tài liệu: level badge, type chip, abstract, tags, AI score, lượt xem/tải
+- **Download tài liệu thực**: presigned URL từ MinIO
+- **Xem trước PDF**: iframe preview trong detail view
+- Chi tiết: DOI link, ISSN, BibTeX copy 1 click
+- AI Chat widget: trợ lý tìm kiếm tài liệu
+- Thêm tài liệu mới (Lecturer/Admin)
+- Sidebar: từ khóa phổ biến, thống kê
+
+### 8. Trợ lý AI (4 Tab)
+| Tab | Chức năng |
+|-----|-----------|
+| **OCR & Phân tích** | Upload PDF/ảnh → OCR → metadata + BBox visual/table + JSON/Markdown export + AI tóm tắt |
+| **Kiểm tra đạo văn** | So sánh với kho nội bộ, hiện % similarity từng công trình |
+| **Xu hướng NC** | Top từ khóa, phân bố theo loại/cấp/năm |
+| **Trợ lý AI** | Chat với Ollama LLM, hỏi đáp nghiên cứu |
+
+### 9. Profile cá nhân
+- Hero banner gradient + avatar + role badge
+- 3 stats: đề tài, công bố, đánh giá
+- Chỉnh sửa: tên, SĐT, khoa, chuyên ngành
+- Tài khoản & bảo mật
+
+### 10. Shared Components
+- **Modal component**: dùng chung tất cả trang, max-height 94vh, header/footer cố định
+- **Toast notification**: success/error/warning/info, auto dismiss, slide-in animation
+- **Confirm dialog**: icon, title, message, danger mode (đỏ), thay thế toàn bộ alert/confirm JS
+
+## AI Features
+
+| Tính năng | Công nghệ | Mô tả |
+|-----------|-----------|-------|
+| **OCR** | Tesseract (vie+eng) | Word/line-level bounding box annotation |
+| **PDF Extract** | PyPDF2 + pdf2image | Digital PDF text + scanned PDF OCR |
+| **Metadata** | NLP regex + LLM | Tự động tìm title, authors, abstract, keywords |
+| **Đạo văn** | TF-IDF cosine similarity | So sánh với kho dữ liệu nội bộ |
+| **Phản biện** | Keyword + text matching | Đề xuất chuyên gia theo lĩnh vực |
+| **Xu hướng** | Frequency analysis | Top keywords, phân bố loại/cấp/năm |
+| **Tóm tắt** | Ollama qwen2.5:3b | Tóm tắt văn bản nghiên cứu |
+| **Chatbot** | Ollama qwen2.5:3b | Trợ lý AI nghiên cứu tiếng Việt |
+| **Quy đổi điểm** | Rule engine + DB lookup | Tự động tính giờ chuẩn NCKH theo HĐGSNN |
+
+## Phân quyền
 
 | Vai trò | Quyền |
 |---------|-------|
-| **ADMIN** | Toàn quyền + quản lý users + ngân sách + khen thưởng |
+| **ADMIN** | Toàn quyền + quản lý users + ngân sách + khen thưởng + tổng hợp giờ chuẩn |
 | **REVIEWER** | Xem + đánh giá + chấm điểm hội đồng |
-| **LECTURER** | Đăng ký đề tài + upload + công bố + thêm thư viện |
+| **LECTURER** | Đăng ký đề tài + upload + công bố + thêm thư viện + xem giờ chuẩn |
 | **STUDENT** | Đăng ký đề tài + upload + xem (mặc định khi đăng ký) |
 
-## Database Schema
-
-### Bảng chính (13 bảng)
+## Database Schema (15 bảng)
 
 | Bảng | Mục đích |
 |------|----------|
 | `User` | Người dùng (4 vai trò) |
 | `ScientificWork` | Đề tài / Công trình NCKH |
-| `WorkflowStep` | Các bước quy trình duyệt (auto-generate theo cấp) |
+| `WorkflowStep` | Các bước quy trình duyệt |
 | `Committee` | Hội đồng đánh giá |
 | `CommitteeMember` | Thành viên hội đồng |
-| `Review` | Phiếu chấm điểm (3 tiêu chí: Đổi mới/Khả thi/Tác động) |
+| `Review` | Phiếu chấm điểm (3 tiêu chí) |
 | `FileUpload` | File tải lên + kết quả OCR |
 | `Notification` | Thông báo hệ thống |
-| `Publication` | Công bố khoa học (OCR → xác nhận → lưu trữ) |
-| `LibraryDocument` | Kho lưu trữ số (tìm kiếm, tags, AI score) |
+| `Publication` | Công bố khoa học |
+| `LibraryDocument` | Kho lưu trữ số |
 | `Budget` | Ngân sách theo khoa/năm |
 | `BudgetTransaction` | Giao dịch giải ngân/phân bổ |
-| `Reward` | Khen thưởng (Tiền mặt/Bằng khen/Giấy khen) |
+| `Reward` | Khen thưởng |
+| `JournalRanking` | Danh mục tạp chí (Scopus, HĐGSNN, trong nước) |
+| `ResearchHours` | Giờ chuẩn NCKH theo năm học |
 
 ## API Endpoints
 
-### Auth
+### Auth & Profile
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
 | POST | `/api/auth/register` | Đăng ký |
 | POST | `/api/auth/login` | Đăng nhập |
-| GET | `/api/auth/profile` | Thông tin user |
+| GET | `/api/auth/profile` | Thông tin user + _count stats |
+| PATCH | `/api/auth/profile` | Cập nhật profile |
 
 ### Công trình khoa học
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
 | GET | `/api/works` | Danh sách (search, filter, paginate) |
-| GET | `/api/works/my` | Công trình của tôi |
 | POST | `/api/works` | Đăng ký mới |
 | GET | `/api/works/:id` | Chi tiết + workflow + reviews |
 | PATCH | `/api/works/:id` | Cập nhật / đổi trạng thái |
-| GET | `/api/works/:id/workflow` | Quy trình xét duyệt |
 
 ### AI
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| POST | `/api/ai/upload` | Upload file → OCR → extract |
+| POST | `/api/ai/upload` | Upload file → OCR → extract (annotations, bbox, pages) |
 | POST | `/api/ai/similarity` | Kiểm tra đạo văn |
-| POST | `/api/ai/extract-keywords` | Trích xuất từ khóa (TF-IDF) |
+| POST | `/api/ai/chat` | Chat với AI (Ollama) |
+| POST | `/api/ai/summarize` | Tóm tắt văn bản |
 | GET | `/api/ai/suggest-experts/:workId` | AI đề xuất phản biện |
 | GET | `/api/ai/trends` | Phân tích xu hướng |
 
-### Công bố khoa học
+### Quy đổi Giờ chuẩn NCKH
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/api/research-hours/my` | Giờ chuẩn cá nhân + chi tiết |
+| POST | `/api/research-hours/calculate` | Tính cho user cụ thể (Admin) |
+| GET | `/api/research-hours/summary` | Tổng hợp toàn trường (Admin) |
+| GET | `/api/research-hours/journals` | Danh mục tạp chí (search, filter) |
+| POST | `/api/research-hours/journals` | Thêm tạp chí (Admin) |
+
+### Công bố, Thư viện, Kinh phí, Hội đồng
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
 | POST | `/api/publications` | Tạo publication |
-| POST | `/api/publications/:id/confirm` | Xác nhận → auto-thêm vào Library |
-| GET | `/api/publications` | Danh sách |
-| GET | `/api/publications/:id` | Chi tiết |
-| PATCH | `/api/publications/:id` | Cập nhật |
-
-### Thư viện số
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| GET | `/api/library` | Tìm kiếm, lọc (type, level, tag) |
-| GET | `/api/library/stats` | Thống kê, top tags |
-| GET | `/api/library/:id` | Chi tiết (auto tăng view count) |
-
-### Kinh phí & Khen thưởng
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| GET | `/api/finance/stats` | Dashboard tổng quan |
-| POST | `/api/finance/budgets` | Tạo ngân sách (Admin) |
-| GET | `/api/finance/budgets` | Danh sách ngân sách |
-| POST | `/api/finance/transactions` | Tạo giao dịch (Admin) |
-| GET | `/api/finance/transactions` | Danh sách giao dịch |
-| PATCH | `/api/finance/transactions/:id/status` | Duyệt/hoàn thành |
-| POST | `/api/finance/rewards` | Tạo khen thưởng (Admin) |
-| GET | `/api/finance/rewards` | Danh sách khen thưởng |
-| PATCH | `/api/finance/rewards/:id/status` | Duyệt/trao thưởng |
-
-### Hội đồng
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| POST | `/api/committees` | Tạo hội đồng (Admin) |
-| GET | `/api/committees` | Danh sách |
-| POST | `/api/committees/review` | Chấm điểm (3 tiêu chí, tổng /100) |
-
-### Dashboard & Notifications
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| GET | `/api/dashboard/stats` | Thống kê tổng quan |
-| GET | `/api/notifications` | Danh sách thông báo |
-| GET | `/api/notifications/count` | Số thông báo chưa đọc |
-| PATCH | `/api/notifications/read-all` | Đánh dấu đã đọc |
+| POST | `/api/publications/:id/confirm` | Xác nhận → auto-thêm Library |
+| GET | `/api/library` | Tìm kiếm thư viện |
+| GET | `/api/finance/stats` | Dashboard kinh phí |
+| POST | `/api/committees` | Tạo hội đồng |
+| POST | `/api/committees/review` | Chấm điểm |
 
 ## Dữ liệu persist
 
-Dữ liệu **KHÔNG mất** khi restart Docker:
-
 ```bash
-# Dừng
+# Dừng - dữ liệu KHÔNG mất
 docker compose down
 
-# Start lại - dữ liệu vẫn còn
+# Start lại
 docker compose up -d
-```
 
-Dữ liệu lưu trong Docker named volumes:
-- `postgres_data` - Database
-- `minio_data` - File uploads
-
-**Chỉ mất dữ liệu khi chạy:**
-```bash
-docker compose down -v   # ⚠️ -v xóa volumes = MẤT dữ liệu
+# ⚠️ Chỉ mất khi xóa volumes
+docker compose down -v
 ```
 
 ## Cấu trúc thư mục
@@ -261,40 +302,55 @@ NCKHAI/
 ├── .env
 ├── README.md
 │
-├── back-end/              # NestJS API
+├── back-end/                  # NestJS API
 │   ├── src/
-│   │   ├── auth/          # JWT, guards, decorators
-│   │   ├── users/         # User CRUD (Admin)
+│   │   ├── auth/              # JWT, guards, decorators
+│   │   ├── users/             # User CRUD (Admin)
 │   │   ├── scientific-works/  # Công trình CRUD + workflow
-│   │   ├── ai/            # Proxy to Python AI service
-│   │   ├── committees/    # Hội đồng + chấm điểm
-│   │   ├── publications/  # Công bố khoa học
-│   │   ├── library/       # Kho lưu trữ số
-│   │   ├── finance/       # Kinh phí & Khen thưởng
-│   │   ├── notifications/ # Thông báo
-│   │   ├── dashboard/     # Thống kê
-│   │   └── prisma/        # Database service
+│   │   ├── ai/                # Proxy to Python AI service
+│   │   ├── committees/        # Hội đồng + chấm điểm
+│   │   ├── publications/      # Công bố khoa học
+│   │   ├── library/           # Kho lưu trữ số
+│   │   ├── finance/           # Kinh phí & Khen thưởng
+│   │   ├── research-hours/    # Giờ chuẩn NCKH + Danh mục tạp chí
+│   │   ├── notifications/     # Thông báo
+│   │   ├── dashboard/         # Thống kê
+│   │   └── prisma/            # Database service
 │   └── prisma/
-│       ├── schema.prisma  # Database schema (13 bảng)
-│       └── seed.ts        # Demo data
+│       ├── schema.prisma      # Database schema (15 bảng)
+│       └── seed.ts            # Demo data + 15 tạp chí
 │
-├── font-end/              # React Frontend
+├── font-end/                  # React Frontend
 │   └── src/
-│       ├── components/    # Layout, Header, Sidebar, ProtectedRoute
-│       ├── contexts/      # AuthContext
-│       ├── pages/         # Dashboard, Works, AI, Publications, Library, Finance
-│       ├── services/      # API clients (axios)
-│       └── types/         # TypeScript types
+│       ├── components/
+│       │   ├── common/        # Modal, Toast, ProgressBar (shared)
+│       │   ├── AppLayout.tsx
+│       │   ├── Header.tsx
+│       │   └── Sidebar.tsx
+│       ├── contexts/          # AuthContext
+│       ├── pages/
+│       │   ├── DashboardPage.tsx
+│       │   ├── works/         # WorkList, WorkDetail, WorkCreate
+│       │   ├── Publications.tsx
+│       │   ├── CommitteeEvaluation.tsx
+│       │   ├── ResearchHoursPage.tsx
+│       │   ├── FinancePage.tsx
+│       │   ├── LibraryPage.tsx
+│       │   ├── ProfilePage.tsx
+│       │   ├── ai/AiAnalysis.tsx
+│       │   └── admin/UserManagement.tsx
+│       ├── services/          # API clients (axios)
+│       └── config/            # Menu config
 │
-├── ai-service/            # Python AI Service
-│   ├── main.py            # FastAPI endpoints
-│   ├── ocr_service.py     # Tesseract OCR + bbox
-│   ├── nlp_utils.py       # TF-IDF, similarity, keywords
-│   ├── llm_client.py      # Ollama / DeepSeek LLM
-│   └── minio_client.py    # MinIO S3 client
+├── ai-service/                # Python AI Service
+│   ├── main.py                # FastAPI endpoints
+│   ├── ocr_service.py         # Tesseract OCR + bbox
+│   ├── nlp_utils.py           # TF-IDF, similarity, keywords
+│   ├── llm_client.py          # Ollama / DeepSeek LLM
+│   └── minio_client.py        # MinIO S3 client
 │
 └── scripts/
-    └── setup-ollama.sh    # Auto-pull Ollama model
+    └── setup-ollama.sh        # Auto-pull Ollama model
 ```
 
 ## Tech Stack
