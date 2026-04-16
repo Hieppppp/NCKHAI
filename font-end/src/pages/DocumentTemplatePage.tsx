@@ -85,17 +85,36 @@ export default function DocumentTemplatePage() {
     try {
       const result = await templateService.uploadDocx(file);
       if (result.html) {
-        // If in create mode, set content
-        if (showCreate) {
-          setCreateForm(prev => ({ ...prev, content: result.html }));
-        }
-        // If in edit mode, set content
         if (editing) {
+          // Đang sửa → load HTML vào editor
           setEditContent(result.html);
+          showSuccess(`Đã import "${file.name}"`);
+        } else if (showCreate) {
+          // Đang tạo mới → load vào form
+          setCreateForm(prev => ({ ...prev, content: result.html, name: prev.name || file.name.replace(/\.docx?$/i, '') }));
+          showSuccess(`Đã import "${file.name}"`);
+        } else {
+          // Upload từ hero → tạo template mới + mở editor
+          const name = file.name.replace(/\.docx?$/i, '');
+          const code = name.toUpperCase().replace(/[^A-Z0-9]/g, '-').replace(/-+/g, '-');
+          const tpl = await templateService.create({
+            name,
+            code: code || `TPL-${Date.now()}`,
+            category: 'OTHER',
+            description: `Import từ ${file.name}`,
+            content: result.html,
+          });
+          showSuccess(`Đã tạo mẫu "${name}" — chèn biến dữ liệu và lưu`);
+          // Mở editor ngay
+          const full = await templateService.getOne(tpl.id);
+          setEditing(full);
+          setEditContent(full.content);
+          const vars = await templateService.getVariables();
+          setVariables(vars);
+          loadData();
         }
-        showSuccess(`Đã import "${file.name}" thành công`);
       }
-    } catch { showError('Import file thất bại'); }
+    } catch (err: any) { showError(err.response?.data?.message || 'Import file thất bại'); }
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -362,9 +381,18 @@ export default function DocumentTemplatePage() {
       <section className="dt-hero">
         <div>
           <h1>Mẫu Tài liệu</h1>
-          <p>Tạo và quản lý mẫu văn bản hành chính - tự động điền dữ liệu từ hệ thống</p>
+          <p>Upload file Word có sẵn → chèn biến dữ liệu → xuất tài liệu tự động điền thông tin</p>
         </div>
-        {isAdmin && <button className="dt-hero-btn" onClick={() => setShowCreate(true)}><Plus size={16} /> Tạo mẫu mới</button>}
+        <div className="dt-hero-actions">
+          {isAdmin && <>
+            <button className="dt-hero-btn upload" onClick={() => fileInputRef.current?.click()}>
+              {uploading ? <Loader2 size={16} className="dt-spin" /> : <Upload size={16} />}
+              {uploading ? 'Đang xử lý...' : 'Upload file Word'}
+            </button>
+            <button className="dt-hero-btn create" onClick={() => setShowCreate(true)}><Plus size={16} /> Soạn mẫu mới</button>
+          </>}
+        </div>
+        <input ref={fileInputRef} type="file" accept=".docx,.doc" onChange={handleUploadDocx} style={{ display: 'none' }} />
       </section>
 
       <div className="dt-tabs">
@@ -502,7 +530,11 @@ const dtStyles = `
   .dt-hero{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
   .dt-hero h1{font-size:1.75rem;font-weight:800;color:#fff;margin-bottom:.25rem}
   .dt-hero p{font-size:.9rem;opacity:.85}
-  .dt-hero-btn{background:#fff;color:#1e1b4b;border:none;padding:10px 20px;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .dt-hero-actions{display:flex;gap:8px}
+  .dt-hero-btn{border:none;padding:10px 20px;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;transition:transform .15s}
+  .dt-hero-btn:hover{transform:translateY(-1px)}
+  .dt-hero-btn.upload{background:#fff;color:#1e1b4b}
+  .dt-hero-btn.create{background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.3)}
 
   .dt-tabs{display:flex;gap:4px;background:var(--surface-low);padding:4px;border-radius:12px;width:fit-content}
   .dt-tab{display:flex;align-items:center;gap:6px;padding:.625rem 1.25rem;border-radius:8px;border:none;background:transparent;font-weight:700;font-size:.8125rem;cursor:pointer;color:var(--on-surface-muted);white-space:nowrap}

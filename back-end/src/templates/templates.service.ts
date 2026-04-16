@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { callDbFunction } from '../prisma/db-functions.js';
 import type { TemplateCategory } from '@prisma/client';
 
 /**
@@ -133,13 +134,18 @@ export class TemplatesService {
   ) {
     const tpl = await this.findOne(templateId);
 
-    // 1. Load variable definitions
-    const variables = await this.prisma.templateVariable.findMany({
-      where: { key: { in: tpl.variables }, isActive: true },
-    });
+    // 1. Load data - DB function first (1 query), fallback to JS
+    let data = await callDbFunction<Record<string, string>>(
+      this.prisma, 'fn_template_data',
+      context.workId || null, context.committeeId || null, context.userId || null,
+    );
 
-    // 2. Load source data
-    const data = await this.loadSourceData(variables, context);
+    if (!data) {
+      const variables = await this.prisma.templateVariable.findMany({
+        where: { key: { in: tpl.variables }, isActive: true },
+      });
+      data = await this.loadSourceData(variables, context);
+    }
 
     // 3. Apply overrides
     if (overrides) {
@@ -189,10 +195,18 @@ export class TemplatesService {
    */
   async preview(templateId: number, context: { workId?: number; committeeId?: number; userId?: number }) {
     const tpl = await this.findOne(templateId);
-    const variables = await this.prisma.templateVariable.findMany({
-      where: { key: { in: tpl.variables }, isActive: true },
-    });
-    const data = await this.loadSourceData(variables, context);
+
+    let data = await callDbFunction<Record<string, string>>(
+      this.prisma, 'fn_template_data',
+      context.workId || null, context.committeeId || null, context.userId || null,
+    );
+
+    if (!data) {
+      const variables = await this.prisma.templateVariable.findMany({
+        where: { key: { in: tpl.variables }, isActive: true },
+      });
+      data = await this.loadSourceData(variables, context);
+    }
 
     let html = tpl.content;
     for (const [key, value] of Object.entries(data)) {

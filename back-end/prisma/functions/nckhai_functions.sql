@@ -422,4 +422,76 @@ CREATE INDEX IF NOT EXISTS idx_work_title_trgm  ON "ScientificWork"  USING gin (
 CREATE INDEX IF NOT EXISTS idx_pub_title_trgm   ON "Publication"     USING gin (title gin_trgm_ops);
 
 -- ────────────────────────────────────────────────────────────
+-- 10. TEMPLATE DATA LOADER (load dữ liệu cho template render)
+-- ────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION fn_template_data(
+  p_work_id INT DEFAULT NULL,
+  p_committee_id INT DEFAULT NULL,
+  p_user_id INT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql STABLE
+AS $$
+DECLARE
+  v_data JSON;
+BEGIN
+  SELECT json_build_object(
+    -- Work data
+    'ten_de_tai',      COALESCE((SELECT title FROM "ScientificWork" WHERE id = p_work_id), ''),
+    'tac_gia',         COALESCE((SELECT authors FROM "ScientificWork" WHERE id = p_work_id), ''),
+    'tom_tat',         COALESCE((SELECT abstract FROM "ScientificWork" WHERE id = p_work_id), ''),
+    'cap_de_tai',      COALESCE((SELECT level::TEXT FROM "ScientificWork" WHERE id = p_work_id), ''),
+    'loai_cong_trinh', COALESCE((SELECT type::TEXT FROM "ScientificWork" WHERE id = p_work_id), ''),
+    'kinh_phi',        COALESCE((SELECT to_char(budget, 'FM999,999,999,999') FROM "ScientificWork" WHERE id = p_work_id), ''),
+    'trang_thai',      COALESCE((SELECT status::TEXT FROM "ScientificWork" WHERE id = p_work_id), ''),
+    'tu_khoa',         COALESCE((SELECT array_to_string(keywords, ', ') FROM "ScientificWork" WHERE id = p_work_id), ''),
+    'ngay_dang_ky',    COALESCE((SELECT to_char("createdAt", 'DD/MM/YYYY') FROM "ScientificWork" WHERE id = p_work_id), ''),
+    -- User data (from work owner or direct)
+    'ho_ten',          COALESCE(
+      (SELECT u.name FROM "User" u WHERE u.id = p_user_id),
+      (SELECT u.name FROM "ScientificWork" sw JOIN "User" u ON sw."userId" = u.id WHERE sw.id = p_work_id),
+      ''
+    ),
+    'email',           COALESCE(
+      (SELECT u.email FROM "User" u WHERE u.id = p_user_id),
+      (SELECT u.email FROM "ScientificWork" sw JOIN "User" u ON sw."userId" = u.id WHERE sw.id = p_work_id),
+      ''
+    ),
+    'don_vi',          COALESCE(
+      (SELECT u.department FROM "User" u WHERE u.id = p_user_id),
+      (SELECT u.department FROM "ScientificWork" sw JOIN "User" u ON sw."userId" = u.id WHERE sw.id = p_work_id),
+      ''
+    ),
+    'chuyen_nganh',    COALESCE(
+      (SELECT u.specialization FROM "User" u WHERE u.id = p_user_id),
+      (SELECT u.specialization FROM "ScientificWork" sw JOIN "User" u ON sw."userId" = u.id WHERE sw.id = p_work_id),
+      ''
+    ),
+    'dien_thoai',      COALESCE(
+      (SELECT u.phone FROM "User" u WHERE u.id = p_user_id),
+      ''
+    ),
+    -- Committee data
+    'ten_hoi_dong',    COALESCE((SELECT name FROM "Committee" WHERE id = p_committee_id), ''),
+    'ngay_hop',        COALESCE((SELECT to_char("meetingDate", 'DD/MM/YYYY') FROM "Committee" WHERE id = p_committee_id), ''),
+    'dia_diem',        COALESCE((SELECT location FROM "Committee" WHERE id = p_committee_id), ''),
+    'ket_luan',        COALESCE((SELECT conclusion FROM "Committee" WHERE id = p_committee_id), ''),
+    'diem_tong',       COALESCE((SELECT ROUND("finalScore"::NUMERIC, 1)::TEXT FROM "Committee" WHERE id = p_committee_id), ''),
+    -- Review averages
+    'diem_doi_moi',    COALESCE((SELECT ROUND(AVG("innovationScore")::NUMERIC, 1)::TEXT FROM "Review" WHERE "committeeId" = p_committee_id), ''),
+    'diem_kha_thi',    COALESCE((SELECT ROUND(AVG("feasibilityScore")::NUMERIC, 1)::TEXT FROM "Review" WHERE "committeeId" = p_committee_id), ''),
+    'diem_tac_dong',   COALESCE((SELECT ROUND(AVG("impactScore")::NUMERIC, 1)::TEXT FROM "Review" WHERE "committeeId" = p_committee_id), ''),
+    -- System
+    'ten_truong',      COALESCE((SELECT value FROM "SystemConfig" WHERE key = 'system.university'), ''),
+    'ten_he_thong',    COALESCE((SELECT value FROM "SystemConfig" WHERE key = 'system.name'), ''),
+    'ngay_hien_tai',   to_char(NOW(), 'DD/MM/YYYY'),
+    'nam_hien_tai',    EXTRACT(YEAR FROM NOW())::TEXT
+  ) INTO v_data;
+
+  RETURN v_data;
+END;
+$$;
+
+-- ────────────────────────────────────────────────────────────
 \echo '>>> All NCKH AI functions created successfully!'
