@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { callDbFunction } from '../prisma/db-functions.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 
 @Controller('dashboard')
@@ -12,12 +13,8 @@ export class DashboardController {
 
     // Admin: dùng PostgreSQL function (1 query thay vì 7)
     if (isAdmin) {
-      try {
-        const result: any[] = await (this.prisma as any).$queryRaw`SELECT get_dashboard_stats() AS data`;
-        if (result?.[0]?.data) return result[0].data;
-      } catch {
-        // Fallback nếu function chưa tạo
-      }
+      const data = await callDbFunction(this.prisma, 'fn_dashboard_stats');
+      if (data) return data;
     }
 
     // Non-admin hoặc fallback: queries riêng lẻ (filter theo userId)

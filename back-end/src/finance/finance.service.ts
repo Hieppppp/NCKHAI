@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { callDbFunction } from '../prisma/db-functions.js';
 import {
   CreateBudgetDto,
   CreateTransactionDto,
@@ -15,6 +16,14 @@ export class FinanceService {
 
   // ─── Dashboard Stats ─────────────────────────────────
   async getStats() {
+    // Ưu tiên PostgreSQL function (1 query thay 5)
+    const fast = await callDbFunction<Record<string, unknown>>(
+      this.prisma,
+      'fn_finance_stats',
+    );
+    if (fast) return fast;
+
+    // Fallback
     const budgets = await this.prisma.budget.findMany();
     const totalBudget = budgets.reduce((s, b) => s + b.totalAmount, 0);
     const totalDisbursed = budgets.reduce((s, b) => s + b.disbursedAmount, 0);
@@ -28,7 +37,6 @@ export class FinanceService {
       where: { status: RewardStatus.AWARDED },
     });
 
-    // Budget by department
     const byDepartment = await this.prisma.budget.groupBy({
       by: ['department'],
       _sum: { totalAmount: true, disbursedAmount: true },

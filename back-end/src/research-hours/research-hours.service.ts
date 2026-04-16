@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { callDbFunction, callDbTableFunction } from '../prisma/db-functions.js';
 
 /**
  * Hệ số quy đổi điểm NCKH theo quy định Hội đồng Giáo sư Nhà nước
@@ -41,33 +42,34 @@ export class ResearchHoursService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User không tồn tại');
 
-    // Thử dùng PostgreSQL function trước
-    try {
-      const rows: any[] = await (this.prisma as any).$queryRaw`
-        SELECT * FROM calculate_research_hours(${userId}, ${academicYear})
-      `;
-      if (rows?.[0]) {
-        const r = rows[0];
-        return {
-          userId, academicYear,
-          publicationPoints: r.publication_points,
-          projectPoints: r.project_points,
-          reviewPoints: r.review_points,
-          totalPoints: r.total_points,
-          requiredPoints: r.required_points,
-          status: 'CALCULATING',
-          completion: r.completion_status,
-          percentage: r.percentage,
-          details: {
-            publications: [], // Chi tiết sẽ load riêng nếu cần
-            projects: [],
-            reviews: r.review_count,
-            reviewPointsPerReview: REVIEW_POINTS,
-          },
-        };
-      }
-    } catch {
-      // Fallback nếu function chưa tạo
+    // PostgreSQL function (1 query thay 6)
+    const rows = await callDbTableFunction<{
+      publication_points: number; project_points: number; review_points: number;
+      total_points: number; required_points: number; pub_count: number;
+      project_count: number; review_count: number;
+      completion_status: string; percentage: number;
+    }>(this.prisma, 'fn_calculate_research_hours', userId, academicYear);
+
+    if (rows?.[0]) {
+      const r = rows[0];
+      return {
+        userId,
+        academicYear,
+        publicationPoints: r.publication_points,
+        projectPoints: r.project_points,
+        reviewPoints: r.review_points,
+        totalPoints: r.total_points,
+        requiredPoints: r.required_points,
+        status: 'CALCULATING',
+        completion: r.completion_status,
+        percentage: r.percentage,
+        details: {
+          publications: [],
+          projects: [],
+          reviews: r.review_count,
+          reviewPointsPerReview: REVIEW_POINTS,
+        },
+      };
     }
 
     // 1. Điểm từ Công bố khoa học
@@ -183,6 +185,15 @@ export class ResearchHoursService {
    * Lấy bảng tổng hợp giờ chuẩn NCKH toàn trường
    */
   async getSummary(academicYear: string) {
+    // PostgreSQL function
+    const fast = await callDbFunction<Record<string, unknown>>(
+      this.prisma,
+      'fn_research_hours_summary',
+      academicYear,
+    );
+    if (fast) return fast;
+
+    // Fallback
     const records = await this.prisma.researchHours.findMany({
       where: { academicYear },
       include: {
@@ -195,7 +206,6 @@ export class ResearchHoursService {
     const completed = records.filter(r => r.totalPoints >= r.requiredPoints).length;
     const avgPoints = total > 0 ? records.reduce((s, r) => s + r.totalPoints, 0) / total : 0;
 
-    // Group by department
     const byDept: Record<string, { count: number; completed: number; avgPoints: number }> = {};
     for (const r of records) {
       const dept = r.user.department || 'Khác';

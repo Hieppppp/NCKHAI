@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { callDbFunction } from '../prisma/db-functions.js';
 import { CreateLibraryDocumentDto, UpdateLibraryDocumentDto } from './dto/library.dto.js';
 import { WorkType, WorkLevel } from '@prisma/client';
 
@@ -95,6 +96,14 @@ export class LibraryService {
   }
 
   async getStats() {
+    // PostgreSQL function (1 query thay 4)
+    const fast = await callDbFunction<Record<string, unknown>>(
+      this.prisma,
+      'fn_library_stats',
+    );
+    if (fast) return fast;
+
+    // Fallback
     const [total, byType, byLevel, topTags] = await Promise.all([
       this.prisma.libraryDocument.count(),
       this.prisma.libraryDocument.groupBy({ by: ['type'], _count: true }),
@@ -105,7 +114,6 @@ export class LibraryService {
       }),
     ]);
 
-    // Aggregate tags
     const tagMap: Record<string, number> = {};
     topTags.forEach((doc) => doc.tags.forEach((t) => { tagMap[t] = (tagMap[t] || 0) + 1; }));
     const tags = Object.entries(tagMap)

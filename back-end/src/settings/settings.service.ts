@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { callDbFunction } from '../prisma/db-functions.js';
 
 @Injectable()
 export class SettingsService {
@@ -85,19 +86,18 @@ export class SettingsService {
   // ─── System Info ───────────────────────────────────────
 
   async getSystemInfo() {
-    const [userCount, workCount, pubCount, libCount] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.scientificWork.count(),
-      this.prisma.publication.count(),
-      this.prisma.libraryDocument.count(),
-    ]);
+    // PostgreSQL function (1 query thay 4)
+    const stats = await callDbFunction<Record<string, number>>(
+      this.prisma,
+      'fn_system_info',
+    );
 
     return {
       version: '2.0.0',
       database: 'PostgreSQL 15',
       aiEngine: 'Tesseract OCR + Ollama qwen2.5:3b',
       storage: 'MinIO S3',
-      stats: { users: userCount, works: workCount, publications: pubCount, library: libCount },
+      stats: stats || { users: 0, works: 0, publications: 0, library: 0 },
     };
   }
 }
