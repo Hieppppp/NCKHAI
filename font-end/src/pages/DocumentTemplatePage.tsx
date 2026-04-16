@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  FileText, Plus, Eye, Edit3, Trash2, Loader2, Search, Printer,
+  FileText, Plus, Eye, Edit3, Trash2, Loader2, Printer,
   Download, Copy, Check, ChevronRight, ArrowLeft, Code, Sparkles,
   BookOpen, Users, Building2, Settings, BarChart3, Variable,
 } from 'lucide-react';
 import { Modal } from '../components/common/Modal';
+import { TemplateEditor } from '../components/common/TemplateEditor';
 import { useToast } from '../components/common/Toast';
 import { templateService } from '../services/templateService';
 import { workService } from '../services/workService';
@@ -52,7 +53,7 @@ export default function DocumentTemplatePage() {
   // Editor state
   const [editing, setEditing] = useState<Template | null>(null);
   const [editContent, setEditContent] = useState('');
-  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const editorWrapRef = useRef<HTMLDivElement>(null);
 
   // Preview state
   const [previewing, setPreviewing] = useState<Template | null>(null);
@@ -103,14 +104,23 @@ export default function DocumentTemplatePage() {
   };
 
   const insertVariable = (key: string) => {
-    const el = editorRef.current;
-    if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const text = editContent;
-    const insert = `{{${key}}}`;
-    setEditContent(text.substring(0, start) + insert + text.substring(end));
-    setTimeout(() => { el.focus(); el.setSelectionRange(start + insert.length, start + insert.length); }, 50);
+    // Insert into TipTap editor as styled placeholder
+    const editorEl = editorWrapRef.current?.querySelector('.te-content .tiptap') as HTMLElement;
+    if (!editorEl) return;
+    const selection = window.getSelection();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    const span = document.createElement('span');
+    span.style.cssText = 'background:#eef2ff;color:#4f46e5;padding:2px 8px;border-radius:4px;font-weight:700;font-size:13px;font-family:monospace';
+    span.textContent = `{{${key}}}`;
+    if (range && editorEl.contains(range.commonAncestorContainer)) {
+      range.deleteContents();
+      range.insertNode(span);
+      range.setStartAfter(span);
+    } else {
+      editorEl.appendChild(span);
+    }
+    editorEl.appendChild(document.createTextNode('\u00A0'));
+    editorEl.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
   const handleCreate = async () => {
@@ -181,14 +191,14 @@ export default function DocumentTemplatePage() {
         <h2 className="dt-edit-title">Chỉnh sửa: {editing.name}</h2>
 
         <div className="dt-editor-layout">
-          <div className="dt-editor-main">
+          <div className="dt-editor-main" ref={editorWrapRef}>
             <div className="dt-editor-toolbar">
-              <span className="dt-editor-info"><Code size={14} /> HTML + {`{{key}}`} placeholders</span>
+              <span className="dt-editor-info"><Code size={14} /> Soạn thảo trực quan — click biến bên phải để chèn</span>
               <button className="dt-save-btn" onClick={handleSaveEdit} disabled={submitting}>
                 {submitting ? <Loader2 size={14} className="dt-spin" /> : <Check size={14} />} Lưu
               </button>
             </div>
-            <textarea ref={editorRef} className="dt-editor-textarea" value={editContent} onChange={e => setEditContent(e.target.value)} spellCheck={false} />
+            <TemplateEditor content={editContent} onChange={setEditContent} />
           </div>
 
           <aside className="dt-var-sidebar">
@@ -413,7 +423,9 @@ export default function DocumentTemplatePage() {
             </select>
           </div>
           <div className="g-field"><label>Mô tả</label><input value={createForm.description} onChange={e => setCreateForm({ ...createForm, description: e.target.value })} /></div>
-          <div className="g-field full"><label>Nội dung HTML (dùng {`{{key}}`} cho biến)</label><textarea value={createForm.content} onChange={e => setCreateForm({ ...createForm, content: e.target.value })} rows={10} placeholder='<h2>QUYẾT ĐỊNH</h2><p>Đề tài: {{ten_de_tai}}</p>' /></div>
+          <div className="g-field full"><label>Nội dung (soạn trực quan, dùng {`{{key}}`} cho biến)</label>
+            <TemplateEditor content={createForm.content} onChange={c => setCreateForm({ ...createForm, content: c })} />
+          </div>
         </div>
       </Modal>
 
