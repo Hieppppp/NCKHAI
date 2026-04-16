@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { Role } from '@prisma/client';
 import { TemplatesService } from './templates.service.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
@@ -89,5 +91,21 @@ export class TemplatesController {
   @Get('documents/:id')
   getDocument(@Param('id', ParseIntPipe) id: number) {
     return this.svc.getRenderedDocument(id);
+  }
+
+  /** Upload Word file → convert to HTML for template editing */
+  @Post('upload-docx')
+  @Roles(Role.ADMIN)
+  @UseInterceptors(FileInterceptor('file', {
+    storage: memoryStorage(),
+    limits: { fileSize: 20 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      if (file.originalname.endsWith('.docx') || file.originalname.endsWith('.doc')) cb(null, true);
+      else cb(new BadRequestException('Chỉ hỗ trợ file .docx'), false);
+    },
+  }))
+  async uploadDocx(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Vui lòng chọn file .docx');
+    return this.svc.convertDocxToHtml(file.buffer, file.originalname, file.mimetype);
   }
 }

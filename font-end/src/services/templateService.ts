@@ -63,4 +63,14 @@ export const templateService = {
     const { data } = await api.get(`/templates/documents/${id}`);
     return data;
   },
+
+  async uploadDocx(file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await api.post('/templates/upload-docx', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    });
+    return data;
+  },
 };

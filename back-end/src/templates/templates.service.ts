@@ -344,6 +344,33 @@ export class TemplatesService {
     return data;
   }
 
+  /**
+   * Upload Word .docx → convert to HTML via AI service
+   */
+  async convertDocxToHtml(fileBuffer: Buffer, filename: string, mimeType: string) {
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:8000';
+
+    const boundary = '----DocxBoundary' + Date.now();
+    const parts: Buffer[] = [];
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`));
+    parts.push(fileBuffer);
+    parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+    const body = Buffer.concat(parts);
+
+    const response = await fetch(`${AI_SERVICE_URL}/convert-docx`, {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body,
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Convert failed: ${err}`);
+    }
+
+    return response.json();
+  }
+
   private getNestedValue(obj: Record<string, any>, path: string): string | null {
     const parts = path.split('.');
     let current: any = obj;

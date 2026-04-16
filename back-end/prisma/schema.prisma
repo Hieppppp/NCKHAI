@@ -508,6 +508,8 @@ model DocumentTemplate {
   category    TemplateCategory @default(OTHER)
   description String?
   content     String           // HTML với {{key}} placeholders
+  contentPath String?          // MinIO path nếu lưu file (minio://templates/xxx.html)
+  sourceFile  String?          // File gốc upload (minio://templates/xxx.docx)
   headerHtml  String?          // Header chung (logo, tên trường)
   footerHtml  String?          // Footer chung (chữ ký, ngày tháng)
   variables   String[]         // Danh sách keys sử dụng: ["ten_de_tai", "tac_gia"]

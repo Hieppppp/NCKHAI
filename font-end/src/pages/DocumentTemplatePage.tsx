@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  FileText, Plus, Eye, Edit3, Trash2, Loader2, Printer,
+  FileText, Plus, Eye, Edit3, Trash2, Loader2, Printer, Upload,
   Download, Copy, Check, ChevronRight, ArrowLeft, Code, Sparkles,
   BookOpen, Users, Building2, Settings, BarChart3, Variable,
 } from 'lucide-react';
@@ -75,6 +75,30 @@ export default function DocumentTemplatePage() {
   const [viewingDoc, setViewingDoc] = useState<any>(null);
 
   const [copied, setCopied] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadDocx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const result = await templateService.uploadDocx(file);
+      if (result.html) {
+        // If in create mode, set content
+        if (showCreate) {
+          setCreateForm(prev => ({ ...prev, content: result.html }));
+        }
+        // If in edit mode, set content
+        if (editing) {
+          setEditContent(result.html);
+        }
+        showSuccess(`Đã import "${file.name}" thành công`);
+      }
+    } catch { showError('Import file thất bại'); }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   useEffect(() => { loadData(); }, [tab, catFilter]);
 
@@ -193,11 +217,15 @@ export default function DocumentTemplatePage() {
         <div className="dt-editor-layout">
           <div className="dt-editor-main" ref={editorWrapRef}>
             <div className="dt-editor-toolbar">
-              <span className="dt-editor-info"><Code size={14} /> Soạn thảo trực quan — click biến bên phải để chèn</span>
+              <span className="dt-editor-info"><Code size={14} /> Soạn trực quan — kéo thả biến từ sidebar</span>
+              <button className="dt-upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                {uploading ? <Loader2 size={14} className="dt-spin" /> : <Upload size={14} />} Import Word
+              </button>
               <button className="dt-save-btn" onClick={handleSaveEdit} disabled={submitting}>
                 {submitting ? <Loader2 size={14} className="dt-spin" /> : <Check size={14} />} Lưu
               </button>
             </div>
+            <input ref={fileInputRef} type="file" accept=".docx,.doc" onChange={handleUploadDocx} style={{ display: 'none' }} />
             <div
               onDragOver={e => { e.preventDefault(); e.currentTarget.style.outline = '2px dashed #4f46e5'; }}
               onDragLeave={e => { e.currentTarget.style.outline = 'none'; }}
@@ -441,7 +469,13 @@ export default function DocumentTemplatePage() {
             </select>
           </div>
           <div className="g-field"><label>Mô tả</label><input value={createForm.description} onChange={e => setCreateForm({ ...createForm, description: e.target.value })} /></div>
-          <div className="g-field full"><label>Nội dung (soạn trực quan, dùng {`{{key}}`} cho biến)</label>
+          <div className="g-field full">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label>Nội dung (soạn trực quan hoặc import từ Word)</label>
+              <button className="dt-upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading} style={{ marginBottom: 4 }}>
+                {uploading ? <Loader2 size={12} className="dt-spin" /> : <Upload size={12} />} Import .docx
+              </button>
+            </div>
             <TemplateEditor content={createForm.content} onChange={c => setCreateForm({ ...createForm, content: c })} />
           </div>
         </div>
@@ -503,6 +537,9 @@ const dtStyles = `
   .dt-editor-layout{display:grid;grid-template-columns:1fr 260px;gap:1rem;align-items:start}
   .dt-editor-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
   .dt-editor-info{font-size:.75rem;color:var(--on-surface-muted);display:flex;align-items:center;gap:4px;font-weight:600}
+  .dt-upload-btn{background:#f0fdf4;color:#059669;border:1.5px solid #bbf7d0;padding:6px 14px;border-radius:8px;font-weight:700;font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .15s}
+  .dt-upload-btn:hover{background:#dcfce7}
+  .dt-upload-btn:disabled{opacity:.5}
   .dt-save-btn{background:var(--signature-gradient);color:#fff;border:none;padding:8px 20px;border-radius:8px;font-weight:700;font-size:.8rem;cursor:pointer;display:flex;align-items:center;gap:4px}
   .dt-save-btn:disabled{opacity:.5}
   .dt-editor-textarea{width:100%;min-height:500px;padding:14px;border:1.5px solid var(--surface-variant);border-radius:10px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:.8rem;line-height:1.7;outline:none;resize:vertical;background:var(--surface-lowest)}
