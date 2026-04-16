@@ -196,7 +196,170 @@ async function main() {
     });
   }
 
-  console.log('Seed completed!', { admin: admin.id, reviewer1: reviewer1.id, reviewer2: reviewer2.id, lecturer: lecturer.id, student: student.id, journals: journals.length, configs: configs.length });
+  // ─── Template Variables ──────────────────────────────────
+  const templateVars = [
+    // Work
+    { key: 'ten_de_tai', label: 'Tên đề tài', source: 'ScientificWork.title', group: 'work', dataType: 'string' },
+    { key: 'tac_gia', label: 'Tác giả / Chủ nhiệm', source: 'ScientificWork.authors', group: 'work', dataType: 'string' },
+    { key: 'tom_tat', label: 'Tóm tắt đề tài', source: 'ScientificWork.abstract', group: 'work', dataType: 'string' },
+    { key: 'tu_khoa', label: 'Từ khóa', source: 'ScientificWork.keywords', group: 'work', dataType: 'list' },
+    { key: 'cap_de_tai', label: 'Cấp đề tài', source: 'ScientificWork.level', group: 'work', dataType: 'string' },
+    { key: 'loai_cong_trinh', label: 'Loại công trình', source: 'ScientificWork.type', group: 'work', dataType: 'string' },
+    { key: 'kinh_phi', label: 'Kinh phí dự kiến', source: 'ScientificWork.budget', group: 'work', dataType: 'number', format: '#,##0' },
+    { key: 'trang_thai', label: 'Trạng thái', source: 'ScientificWork.status', group: 'work', dataType: 'string' },
+    { key: 'ngay_dang_ky', label: 'Ngày đăng ký', source: 'ScientificWork.createdAt', group: 'work', dataType: 'date' },
+    // User
+    { key: 'ho_ten', label: 'Họ và tên', source: 'User.name', group: 'user', dataType: 'string' },
+    { key: 'email', label: 'Email', source: 'User.email', group: 'user', dataType: 'string' },
+    { key: 'don_vi', label: 'Đơn vị / Khoa', source: 'User.department', group: 'user', dataType: 'string' },
+    { key: 'chuyen_nganh', label: 'Chuyên ngành', source: 'User.specialization', group: 'user', dataType: 'string' },
+    { key: 'dien_thoai', label: 'Số điện thoại', source: 'User.phone', group: 'user', dataType: 'string' },
+    // Committee
+    { key: 'ten_hoi_dong', label: 'Tên hội đồng', source: 'Committee.name', group: 'committee', dataType: 'string' },
+    { key: 'ngay_hop', label: 'Ngày họp', source: 'Committee.meetingDate', group: 'committee', dataType: 'date' },
+    { key: 'dia_diem', label: 'Địa điểm họp', source: 'Committee.location', group: 'committee', dataType: 'string' },
+    { key: 'ket_luan', label: 'Kết luận hội đồng', source: 'Committee.conclusion', group: 'committee', dataType: 'string' },
+    { key: 'diem_tong', label: 'Điểm trung bình', source: 'Committee.finalScore', group: 'committee', dataType: 'number' },
+    // Review
+    { key: 'diem_doi_moi', label: 'Điểm đổi mới', source: 'Review.innovationScore', group: 'committee', dataType: 'number' },
+    { key: 'diem_kha_thi', label: 'Điểm khả thi', source: 'Review.feasibilityScore', group: 'committee', dataType: 'number' },
+    { key: 'diem_tac_dong', label: 'Điểm tác động', source: 'Review.impactScore', group: 'committee', dataType: 'number' },
+    // System
+    { key: 'ten_truong', label: 'Tên trường', source: 'System.ten_truong', group: 'system', dataType: 'string' },
+    { key: 'ngay_hien_tai', label: 'Ngày hiện tại', source: 'System.ngay_hien_tai', group: 'system', dataType: 'date' },
+    { key: 'nam_hien_tai', label: 'Năm hiện tại', source: 'System.nam_hien_tai', group: 'system', dataType: 'string' },
+  ];
+
+  for (const v of templateVars) {
+    await prisma.templateVariable.upsert({
+      where: { key: v.key },
+      update: {},
+      create: v,
+    });
+  }
+
+  // ─── Document Templates ────────────────────────────────
+  const headerHtml = `<div style="text-align:center;margin-bottom:24px"><p style="font-size:13px;font-weight:700;text-transform:uppercase">{{ten_truong}}</p><p style="font-size:11px;color:#666">Ngày {{ngay_hien_tai}}</p><hr style="margin-top:12px;border:none;border-top:2px solid #1a237e"></div>`;
+
+  const templates = [
+    {
+      name: 'Quyết định nghiệm thu đề tài',
+      code: 'QD-NGHIEM-THU',
+      category: 'DECISION',
+      description: 'Mẫu quyết định nghiệm thu đề tài nghiên cứu khoa học',
+      content: `<div style="font-family:Times New Roman,serif;font-size:14px;line-height:1.8">
+<h2 style="text-align:center;font-size:16px;text-transform:uppercase;color:#1a237e">QUYẾT ĐỊNH<br>Về việc nghiệm thu đề tài nghiên cứu khoa học</h2>
+<p style="text-align:center;font-style:italic">Số: ___/QĐ-ĐHXYZ</p>
+
+<p><strong>HIỆU TRƯỞNG TRƯỜNG {{ten_truong}}</strong></p>
+<p>Căn cứ biên bản họp Hội đồng đánh giá ngày {{ngay_hop}};</p>
+<p>Căn cứ kết quả đánh giá của Hội đồng {{ten_hoi_dong}};</p>
+<p>Xét đề nghị của Phòng Quản lý Khoa học,</p>
+
+<h3 style="text-align:center;color:#1a237e">QUYẾT ĐỊNH:</h3>
+
+<p><strong>Điều 1.</strong> Nghiệm thu đề tài nghiên cứu khoa học:</p>
+<ul>
+  <li>Tên đề tài: <strong>{{ten_de_tai}}</strong></li>
+  <li>Chủ nhiệm: <strong>{{tac_gia}}</strong></li>
+  <li>Đơn vị: {{don_vi}}</li>
+  <li>Cấp đề tài: {{cap_de_tai}}</li>
+  <li>Kinh phí: {{kinh_phi}} VNĐ</li>
+</ul>
+
+<p><strong>Điều 2.</strong> Kết quả đánh giá:</p>
+<ul>
+  <li>Điểm trung bình: <strong>{{diem_tong}}/100</strong></li>
+  <li>Kết luận: <strong>{{ket_luan}}</strong></li>
+</ul>
+
+<p><strong>Điều 3.</strong> Quyết định này có hiệu lực kể từ ngày ký.</p>
+
+<div style="display:flex;justify-content:flex-end;margin-top:40px">
+  <div style="text-align:center">
+    <p><strong>HIỆU TRƯỞNG</strong></p>
+    <p style="margin-top:60px"><em>(Ký tên, đóng dấu)</em></p>
+  </div>
+</div>
+</div>`,
+      variables: ['ten_truong', 'ngay_hop', 'ten_hoi_dong', 'ten_de_tai', 'tac_gia', 'don_vi', 'cap_de_tai', 'kinh_phi', 'diem_tong', 'ket_luan', 'ngay_hien_tai'],
+    },
+    {
+      name: 'Biên bản họp Hội đồng',
+      code: 'BB-HOI-DONG',
+      category: 'MINUTES',
+      description: 'Mẫu biên bản cuộc họp hội đồng đánh giá đề tài',
+      content: `<div style="font-family:Times New Roman,serif;font-size:14px;line-height:1.8">
+<h2 style="text-align:center;font-size:16px;text-transform:uppercase;color:#1a237e">BIÊN BẢN HỌP HỘI ĐỒNG ĐÁNH GIÁ</h2>
+<p style="text-align:center;font-style:italic">Đề tài nghiên cứu khoa học</p>
+
+<p><strong>1. Thời gian:</strong> {{ngay_hop}}</p>
+<p><strong>2. Địa điểm:</strong> {{dia_diem}}</p>
+<p><strong>3. Hội đồng:</strong> {{ten_hoi_dong}}</p>
+<p><strong>4. Đề tài:</strong> {{ten_de_tai}}</p>
+<p><strong>5. Chủ nhiệm:</strong> {{tac_gia}} — {{don_vi}}</p>
+
+<h3>6. Kết quả đánh giá</h3>
+<table style="width:100%;border-collapse:collapse;margin:12px 0">
+<tr style="background:#eef2ff"><th style="border:1px solid #ccc;padding:8px;text-align:left">Tiêu chí</th><th style="border:1px solid #ccc;padding:8px;width:100px">Điểm</th></tr>
+<tr><td style="border:1px solid #ccc;padding:8px">Tính đổi mới & Sáng tạo</td><td style="border:1px solid #ccc;padding:8px;text-align:center;font-weight:700">{{diem_doi_moi}}/40</td></tr>
+<tr><td style="border:1px solid #ccc;padding:8px">Tính khả thi & Phương pháp</td><td style="border:1px solid #ccc;padding:8px;text-align:center;font-weight:700">{{diem_kha_thi}}/30</td></tr>
+<tr><td style="border:1px solid #ccc;padding:8px">Tác động kinh tế - xã hội</td><td style="border:1px solid #ccc;padding:8px;text-align:center;font-weight:700">{{diem_tac_dong}}/30</td></tr>
+<tr style="background:#f8faff"><td style="border:1px solid #ccc;padding:8px;font-weight:700">TỔNG ĐIỂM</td><td style="border:1px solid #ccc;padding:8px;text-align:center;font-weight:700;font-size:16px;color:#1a237e">{{diem_tong}}/100</td></tr>
+</table>
+
+<p><strong>7. Kết luận:</strong> {{ket_luan}}</p>
+<p><strong>8. Tóm tắt đề tài:</strong> {{tom_tat}}</p>
+
+<div style="display:flex;justify-content:space-between;margin-top:40px">
+  <div style="text-align:center"><p><strong>THƯ KÝ</strong></p><p style="margin-top:50px"><em>(Ký, ghi rõ họ tên)</em></p></div>
+  <div style="text-align:center"><p><strong>CHỦ TỊCH HỘI ĐỒNG</strong></p><p style="margin-top:50px"><em>(Ký, ghi rõ họ tên)</em></p></div>
+</div>
+</div>`,
+      variables: ['ngay_hop', 'dia_diem', 'ten_hoi_dong', 'ten_de_tai', 'tac_gia', 'don_vi', 'diem_doi_moi', 'diem_kha_thi', 'diem_tac_dong', 'diem_tong', 'ket_luan', 'tom_tat'],
+    },
+    {
+      name: 'Giấy khen thưởng',
+      code: 'GK-KHEN-THUONG',
+      category: 'CERTIFICATE',
+      description: 'Mẫu giấy khen cho cá nhân có thành tích NCKH xuất sắc',
+      content: `<div style="font-family:Times New Roman,serif;font-size:14px;line-height:1.8;text-align:center">
+<h2 style="font-size:18px;text-transform:uppercase;color:#1a237e;margin-bottom:24px">GIẤY KHEN</h2>
+<p style="font-size:13px">HIỆU TRƯỞNG {{ten_truong}}</p>
+<p style="font-size:13px;margin-bottom:24px">Tặng giấy khen cho:</p>
+
+<p style="font-size:20px;font-weight:700;color:#1a237e;margin:16px 0">{{ho_ten}}</p>
+<p>Đơn vị: {{don_vi}}</p>
+<p>Chuyên ngành: {{chuyen_nganh}}</p>
+
+<p style="margin:20px 0">Đã có thành tích xuất sắc trong nghiên cứu khoa học:</p>
+<p style="font-size:15px;font-weight:600;font-style:italic;margin:8px 40px">"{{ten_de_tai}}"</p>
+<p>Cấp đề tài: {{cap_de_tai}} — Điểm đánh giá: {{diem_tong}}/100</p>
+
+<div style="text-align:right;margin-top:40px;padding-right:60px">
+  <p>Ngày {{ngay_hien_tai}}</p>
+  <p><strong>HIỆU TRƯỞNG</strong></p>
+  <p style="margin-top:50px"><em>(Ký tên, đóng dấu)</em></p>
+</div>
+</div>`,
+      variables: ['ten_truong', 'ho_ten', 'don_vi', 'chuyen_nganh', 'ten_de_tai', 'cap_de_tai', 'diem_tong', 'ngay_hien_tai'],
+    },
+  ];
+
+  for (const t of templates) {
+    await prisma.documentTemplate.upsert({
+      where: { code: t.code },
+      update: {},
+      create: { ...t, category: t.category as any, headerHtml, createdById: admin.id },
+    });
+  }
+
+  console.log('Seed completed!', {
+    admin: admin.id, reviewer1: reviewer1.id, reviewer2: reviewer2.id,
+    lecturer: lecturer.id, student: student.id,
+    journals: journals.length, configs: configs.length,
+    templateVars: templateVars.length, templates: templates.length,
+  });
 }
 
 main()

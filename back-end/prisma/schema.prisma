@@ -117,6 +117,8 @@ model User {
   approvedRewards  Reward[]              @relation("RewardApprover")
   researchHours    ResearchHours[]
   preferences      UserPreference[]
+  createdTemplates DocumentTemplate[] @relation("TemplateCreator")
+  renderedDocs     RenderedDocument[] @relation("DocCreator")
 }
 
 // ─── Scientific Work (Core Entity) ──────────────────────
@@ -485,4 +487,71 @@ model UserPreference {
   value  String
 
   @@unique([userId, key])
+}
+
+// ─── Document Template (Mẫu tài liệu động) ────────────
+
+enum TemplateCategory {
+  DECISION        // Quyết định
+  REPORT          // Báo cáo
+  CONTRACT        // Hợp đồng
+  CERTIFICATE     // Giấy khen / Bằng khen
+  MINUTES         // Biên bản
+  EVALUATION      // Phiếu đánh giá
+  OTHER
+}
+
+model DocumentTemplate {
+  id          Int              @id @default(autoincrement())
+  name        String
+  code        String           @unique    // VD: "QD-NGHIEM-THU", "BB-HOI-DONG"
+  category    TemplateCategory @default(OTHER)
+  description String?
+  content     String           // HTML với {{key}} placeholders
+  headerHtml  String?          // Header chung (logo, tên trường)
+  footerHtml  String?          // Footer chung (chữ ký, ngày tháng)
+  variables   String[]         // Danh sách keys sử dụng: ["ten_de_tai", "tac_gia"]
+  isActive    Boolean          @default(true)
+  version     Int              @default(1)
+
+  createdById Int
+  createdBy   User             @relation("TemplateCreator", fields: [createdById], references: [id])
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  renderedDocs RenderedDocument[]
+}
+
+model TemplateVariable {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique       // "ten_de_tai"
+  label       String                 // "Tên đề tài"
+  description String?                // "Lấy từ bảng ScientificWork"
+  source      String                 // "ScientificWork.title" - mapping đến DB field
+  group       String   @default("work") // work, user, committee, finance, system
+  dataType    String   @default("string") // string, number, date, list
+  format      String?                // VD: "DD/MM/YYYY" cho date, "#,##0" cho number
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// Tài liệu đã render (lưu lại để tra cứu)
+model RenderedDocument {
+  id          Int      @id @default(autoincrement())
+  templateId  Int
+  template    DocumentTemplate @relation(fields: [templateId], references: [id])
+  name        String           // Tên file xuất: "QD-001-Nghiem-thu-DT-2024"
+  htmlContent String           // HTML đã render (đã thay {{key}} = giá trị thật)
+  sourceData  Json?            // JSON snapshot dữ liệu lúc render
+
+  // Liên kết tài liệu gốc
+  workId      Int?
+  committeeId Int?
+  userId      Int?
+
+  createdById Int
+  createdBy   User   @relation("DocCreator", fields: [createdById], references: [id])
+
+  createdAt   DateTime @default(now())
 }
