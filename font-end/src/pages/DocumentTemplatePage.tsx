@@ -198,19 +198,37 @@ export default function DocumentTemplatePage() {
                 {submitting ? <Loader2 size={14} className="dt-spin" /> : <Check size={14} />} Lưu
               </button>
             </div>
-            <TemplateEditor content={editContent} onChange={setEditContent} />
+            <div
+              onDragOver={e => { e.preventDefault(); e.currentTarget.style.outline = '2px dashed #4f46e5'; }}
+              onDragLeave={e => { e.currentTarget.style.outline = 'none'; }}
+              onDrop={e => {
+                e.preventDefault();
+                e.currentTarget.style.outline = 'none';
+                const key = e.dataTransfer.getData('text/plain');
+                if (key && key.startsWith('{{')) {
+                  insertVariable(key.replace(/[{}]/g, ''));
+                }
+              }}
+            >
+              <TemplateEditor content={editContent} onChange={setEditContent} />
+            </div>
           </div>
 
           <aside className="dt-var-sidebar">
             <h4><Variable size={14} /> Chèn biến dữ liệu</h4>
-            <p className="dt-var-hint">Click để chèn vào vị trí con trỏ</p>
+            <p className="dt-var-hint">Kéo thả hoặc click để chèn vào editor</p>
             {Object.entries(groupVars(variables)).map(([group, vars]) => {
               const GIcon = GROUP_ICONS[group] || Settings;
               return (
                 <div key={group} className="dt-var-group">
                   <span className="dt-var-group-label"><GIcon size={12} /> {group}</span>
                   {vars.map(v => (
-                    <button key={v.key} className="dt-var-btn" onClick={() => insertVariable(v.key)} title={`${v.source} (${v.dataType})`}>
+                    <button key={v.key} className="dt-var-btn"
+                      draggable
+                      onClick={() => insertVariable(v.key)}
+                      onDragStart={e => { e.dataTransfer.setData('text/plain', `{{${v.key}}}`); e.dataTransfer.effectAllowed = 'copy'; }}
+                      title={`${v.label} — kéo thả vào editor`}>
+                      <span className="dt-var-drag">⠿</span>
                       <span className="dt-var-key">{`{{${v.key}}}`}</span>
                       <span className="dt-var-label">{v.label}</span>
                     </button>
@@ -496,7 +514,10 @@ const dtStyles = `
   .dt-var-group{margin-bottom:.75rem}
   .dt-var-group-label{font-size:.65rem;font-weight:800;color:var(--on-surface-muted);text-transform:uppercase;display:flex;align-items:center;gap:4px;margin-bottom:.375rem}
   .dt-var-btn{display:flex;align-items:center;gap:6px;width:100%;padding:5px 8px;border:none;border-radius:6px;background:transparent;cursor:pointer;text-align:left;transition:background .1s;font-size:.75rem}
+  .dt-var-btn{cursor:grab}
+  .dt-var-btn:active{cursor:grabbing}
   .dt-var-btn:hover{background:#eef2ff}
+  .dt-var-drag{color:var(--on-surface-variant);font-size:10px;line-height:1;user-select:none}
   .dt-var-key{font-family:monospace;color:var(--primary-indigo);font-weight:700;font-size:.7rem;white-space:nowrap}
   .dt-var-label{color:var(--on-surface-muted);font-size:.7rem}
 
