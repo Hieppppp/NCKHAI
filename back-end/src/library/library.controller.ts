@@ -1,7 +1,9 @@
 import {
   Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, ParseIntPipe,
+  Body, Param, Query, ParseIntPipe, UseInterceptors, UploadedFile, BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { Role } from '@prisma/client';
 import { LibraryService } from './library.service.js';
 import { CreateLibraryDocumentDto, UpdateLibraryDocumentDto } from './dto/library.dto.js';
@@ -55,5 +57,27 @@ export class LibraryController {
   @Roles(Role.ADMIN)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.svc.remove(id);
+  }
+
+  /** Upload file cho tài liệu thư viện (MinIO) */
+  @Post(':id/upload')
+  @Roles(Role.ADMIN, Role.LECTURER)
+  @UseInterceptors(FileInterceptor('file', {
+    storage: memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 },
+  }))
+  async uploadFile(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser('id') userId: number,
+  ) {
+    if (!file) throw new BadRequestException('Vui lòng chọn file');
+    return this.svc.uploadFile(id, file.buffer, file.originalname, file.mimetype, file.size, userId);
+  }
+
+  /** Lấy presigned URL download */
+  @Get(':id/download')
+  async downloadFile(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.getDownloadUrl(id);
   }
 }

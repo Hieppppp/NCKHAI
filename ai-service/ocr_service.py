@@ -86,15 +86,24 @@ def _ocr_image_with_bbox(image: Image.Image, lang: str = "vie+eng", page_no: int
     }
 
 
-def _extract_pdf_text(file_bytes: bytes) -> tuple[str, int]:
-    """Extract text from digital PDF (fast, no OCR)."""
+def _extract_pdf_text(file_bytes: bytes) -> tuple[str, int, list[dict]]:
+    """Extract text từ digital PDF per-page với số trang rõ ràng.
+    Returns: (full_text, num_pages, pages_info)
+    """
     reader = PdfReader(io.BytesIO(file_bytes))
     pages_text = []
-    for page in reader.pages:
-        t = page.extract_text()
-        if t:
-            pages_text.append(t)
-    return "\n".join(pages_text), len(reader.pages)
+    pages_info = []
+    for i, page in enumerate(reader.pages):
+        t = page.extract_text() or ""
+        pages_text.append(t)
+        pages_info.append({
+            "page": i + 1,
+            "width": int(float(page.mediabox.width)) if hasattr(page, 'mediabox') else 595,
+            "height": int(float(page.mediabox.height)) if hasattr(page, 'mediabox') else 842,
+            "textLength": len(t),
+            "wordCount": len(t.split()),
+        })
+    return "\n\n---- PAGE ----\n\n".join(pages_text), len(reader.pages), pages_info
 
 
 def _ocr_pdf_pages(file_bytes: bytes, lang: str = "vie+eng") -> dict:
@@ -154,17 +163,39 @@ def process_file(file_bytes: bytes, filename: str) -> dict:
 
     # PDF: try text extract first, fallback to OCR
     if ext == "pdf":
-        text, num_pages = _extract_pdf_text(file_bytes)
+        text, num_pages, pages_info = _extract_pdf_text(file_bytes)
 
         if len(text.strip()) > 100:
-            # Digital PDF - got text without OCR
+            # Digital PDF - extracted text directly (no OCR needed)
+            # Generate synthetic line annotations per-page để hiển thị cấu trúc
+            line_annotations = []
+            pages_with_lines = text.split("\n\n---- PAGE ----\n\n")
+            for page_idx, page_text in enumerate(pages_with_lines):
+                page_size = pages_info[page_idx] if page_idx < len(pages_info) else {"width": 595, "height": 842}
+                lines = [ln.strip() for ln in page_text.split("\n") if ln.strip()]
+                y_offset = 50
+                line_height = max(15, (page_size["height"] - 100) // max(len(lines), 1))
+                for line_idx, line in enumerate(lines[:100]):  # Cap at 100 lines/page
+                    line_annotations.append({
+                        "text": line,
+                        "type": "line",
+                        "confidence": 1.0,
+                        "page": page_idx + 1,
+                        "bbox": {
+                            "x": 50,
+                            "y": y_offset + line_idx * line_height,
+                            "width": page_size["width"] - 100,
+                            "height": line_height - 2,
+                        },
+                    })
+
             return {
                 "text": text,
                 "confidence": 99.0,
-                "annotations": [],
-                "lineAnnotations": [],
+                "annotations": [],  # Word-level không có cho digital PDF
+                "lineAnnotations": line_annotations,
                 "engine": "pypdf2-text",
-                "pages": [{"page": i + 1} for i in range(num_pages)],
+                "pages": pages_info,
             }
 
         # Scanned PDF - OCR each page with bbox
@@ -179,7 +210,7 @@ def process_file(file_bytes: bytes, filename: str) -> dict:
                 "annotations": [],
                 "lineAnnotations": [],
                 "engine": "pypdf2-partial",
-                "pages": [{"page": i + 1} for i in range(num_pages)],
+                "pages": pages_info,
                 "note": f"OCR thất bại: {e}",
             }
 

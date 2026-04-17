@@ -81,12 +81,27 @@ export default function LibraryPage() {
   };
 
   const handleDownload = async (doc: LibDoc) => {
-    const filePath = doc.publication?.file?.path;
-    if (!filePath) { showWarning('Tài liệu này chưa có file đính kèm'); return; }
     try {
-      const url = await aiService.getFileUrl(filePath.replace('minio://', ''));
-      window.open(url, '_blank');
-    } catch { showError('Không thể tải file'); }
+      const { url, originalName } = await libraryService.downloadFile(doc.id);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = originalName || 'document';
+      a.target = '_blank';
+      a.click();
+    } catch (err: any) {
+      const msg = err.response?.data?.message;
+      if (msg?.includes('chưa có file')) showWarning(msg);
+      else showError('Không thể tải file');
+    }
+  };
+
+  const handleUpload = async (doc: LibDoc, file: File) => {
+    try {
+      await libraryService.uploadFile(doc.id, file);
+      showSuccess(`Đã upload "${file.name}"`);
+      if (detail) { const updated = await libraryService.findOne(doc.id); setDetail(updated); }
+      fetchDocs(meta.page);
+    } catch { showError('Upload thất bại'); }
   };
 
   const handleCopyBib = (doc: LibDoc) => {
@@ -199,6 +214,16 @@ export default function LibraryPage() {
               <button className="lib-action-btn download" onClick={() => handleDownload(detail)}>
                 <Download size={14} /> Tải tài liệu gốc
               </button>
+              {isLecturerOrAdmin && (
+                <label className="lib-action-btn upload" style={{ cursor: 'pointer' }}>
+                  <input type="file" style={{ display: 'none' }} onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) handleUpload(detail, f);
+                    e.target.value = '';
+                  }} accept=".pdf,.docx,.doc,.png,.jpg,.jpeg" />
+                  <Download size={14} style={{ transform: 'rotate(180deg)' }} /> Upload / Thay file
+                </label>
+              )}
             </div>
           </aside>
         </div>
@@ -387,7 +412,7 @@ const libStyles = `
   .lib{display:flex;flex-direction:column;gap:1.25rem;padding-bottom:3rem}
   .lib-back{background:none;border:none;display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--on-surface-muted);font-weight:700;font-size:.85rem;padding:0}
 
-  .lib-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 40%,#334155 100%);border-radius:20px;padding:2.5rem;color:#fff}
+  .lib-hero{background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 40%,#2563eb 100%);border-radius:20px;padding:2.5rem;color:#fff}
   .lib-hero-content{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem}
   .lib-hero-text h1{font-size:1.75rem;font-weight:800;color:#fff;margin-bottom:.375rem}
   .lib-hero-text p{font-size:.9rem;opacity:.85;max-width:480px;line-height:1.5}
@@ -398,7 +423,7 @@ const libStyles = `
   .lib-hero-search{display:flex;gap:.5rem;background:rgba(255,255,255,.15);border-radius:14px;padding:4px;backdrop-filter:blur(8px)}
   .lib-hero-search input{flex:1;border:none;outline:none;padding:.75rem 1rem;font-size:.9rem;background:transparent;color:#fff}
   .lib-hero-search input::placeholder{color:rgba(255,255,255,.6)}
-  .lib-hero-search button{background:#fff;color:#0f172a;border:none;padding:.75rem 1.5rem;border-radius:10px;font-weight:700;cursor:pointer;font-size:.85rem}
+  .lib-hero-search button{background:#fff;color:#1e3a8a;border:none;padding:.75rem 1.5rem;border-radius:10px;font-weight:700;cursor:pointer;font-size:.85rem}
   .lib-hero-search svg{color:rgba(255,255,255,.6);margin:auto .5rem}
 
   .lib-toolbar{display:flex;align-items:center;gap:.625rem}
@@ -479,6 +504,8 @@ const libStyles = `
   .lib-action-btn{width:100%;padding:10px;border-radius:8px;font-weight:700;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:.5rem;background:var(--surface-low);border:none;color:var(--on-surface);transition:all .15s}
   .lib-action-btn:hover{background:#eef2ff;color:var(--primary-indigo)}
   .lib-action-btn.download{background:var(--signature-gradient);color:#fff}
+  .lib-action-btn.upload{background:#dbeafe;color:var(--primary-indigo);border:1.5px solid #93c5fd}
+  .lib-action-btn.upload:hover{background:#bfdbfe}
 
   /* Chat */
   .lib-chat-fab{position:fixed;bottom:2rem;right:2rem;z-index:200;width:52px;height:52px;border-radius:50%;background:var(--primary-indigo);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(79,70,229,.4)}

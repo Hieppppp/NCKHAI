@@ -96,15 +96,29 @@ research hours calculation, template data loader, plagiarism check với pg_trgm
 
 ```bash
 # Chỉ restart các service thay đổi
-docker compose restart back-end         # khi sửa backend
-docker compose restart front-end        # khi sửa frontend CSS/config
-# Frontend thường tự HMR khi sửa React, không cần restart
+docker compose restart back-end         # khi sửa backend (thêm module, controller, service)
+docker compose restart front-end        # khi sửa frontend CSS/config/router
+docker compose restart ai-service       # khi sửa code Python (OCR, AI)
+# Frontend thường tự HMR khi sửa React component, không cần restart
+
+# Khi thêm module backend mới (VD: FilesModule, Queue), bắt buộc restart backend
+docker compose restart back-end
+
+# Khi thêm route/page frontend mới (VD: /files, /jobs), HMR tự load
+# Nhưng nếu đổi menu/router nặng thì restart cho chắc
+docker compose restart front-end
 
 # Rebuild nếu thêm npm package mới
 docker compose up -d --build front-end
+docker compose up -d --build back-end
 
-# Rebuild nếu đổi Dockerfile
+# Rebuild nếu đổi Dockerfile hoặc docker-compose.yml
 docker compose up -d --build
+
+# Dọn volume + rebuild (khi gặp lỗi Prisma client cũ)
+docker compose down
+docker volume rm nckhai_nckhai-backend-node_modules 2>/dev/null
+docker compose up -d --build back-end
 ```
 
 ### 7. Truy cập
@@ -242,7 +256,7 @@ docker cp nckhai-minio:/data ./minio-backup
 | **Phòng QLKH** | Tự động tính, không cần lật từng tờ giấy đối chiếu Q1/Q2 |
 | **Ban giám hiệu** | Bảng xếp hạng, thống kê theo Khoa, dữ liệu cho kiểm định |
 
-### 6. Kinh phí & Khen thưởng
+### 6. Tài chính & Thi đua (đổi tên từ "Kinh phí & Khen thưởng")
 - Hero banner + progress ring % giải ngân
 - 4 stats: tổng ngân sách, đã giải ngân, đề tài đang thực hiện, khen thưởng
 - Phân bổ ngân sách theo Khoa (donut chart SVG)
@@ -270,7 +284,27 @@ docker cp nckhai-minio:/data ./minio-backup
 | **Xu hướng NC** | Top từ khóa, phân bố theo loại/cấp/năm |
 | **Trợ lý AI** | Chat với Ollama LLM, hỏi đáp nghiên cứu |
 
-### 9. Profile cá nhân
+### 9. Quản lý tài liệu (MinIO File Manager)
+- **Trang mới** `/files` — quản lý toàn bộ tài liệu đã upload lên MinIO
+- 4 stat cards: tổng số tệp, dung lượng sử dụng, upload 7 ngày qua, số định dạng
+- Bảng danh sách: tên tệp, phân loại (badge màu), kích thước, trạng thái OCR + độ tin cậy %, người tải, đề tài liên kết, ngày upload
+- Filter: phân loại (MANUSCRIPT/PROPOSAL/...), định dạng (PDF/Word/ảnh/text), trạng thái OCR (đã/chưa)
+- Chi tiết file: metadata OCR (tiêu đề/tác giả/keywords), preview PDF inline, preview ảnh, download
+- Admin xóa file (xóa cả object MinIO + DB record)
+- **API**: `GET /api/files`, `/stats`, `/:id`, `/:id/download`, `DELETE /:id`
+
+### 10. Quản lý tác vụ (Job Queue Manager)
+- **Trang mới** `/jobs` — theo dõi các tác vụ xử lý bất đồng bộ (OCR, AI summarize, embedding, email, report)
+- 5 stat cards status (tiếng Việt): **Đang chờ / Đang xử lý / Hoàn thành / Thất bại / Tổng bản ghi**
+- 2 queue cards: hiển thị số job theo từng state (Chờ/Chạy/Xong/Lỗi/Hoãn) cho OCR + AI Summarize
+- Bảng danh sách: Job ID, hàng đợi, status badge, progress bar, thời gian xử lý, ngày tạo
+- Auto-refresh mỗi 5s, toggle bật/tắt
+- Filter: theo status, theo queue, toggle "Xem tất cả người dùng" (Admin)
+- Actions (Admin): **Chạy lại** job thất bại, **Xóa** job, **Dọn dẹp** jobs cũ > 24h
+- Chi tiết: input JSON, result JSON, error stacktrace
+- **API**: `GET /api/jobs`, `/admin/stats`, `POST /:id/retry`, `DELETE /:id`, `POST /admin/clean`
+
+### 11. Profile cá nhân
 - Hero banner gradient + avatar + role badge
 - 3 stats: đề tài, công bố, đánh giá
 - Chỉnh sửa: tên, SĐT, khoa, chuyên ngành
@@ -361,7 +395,7 @@ docker cp nckhai-minio:/data ./minio-backup
 | GET | `/api/research-hours/journals` | Danh mục tạp chí (search, filter) |
 | POST | `/api/research-hours/journals` | Thêm tạp chí (Admin) |
 
-### Công bố, Thư viện, Kinh phí, Hội đồng
+### Công bố, Thư viện, Tài chính & Thi đua, Hội đồng
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
 | POST | `/api/publications` | Tạo publication |
@@ -370,6 +404,25 @@ docker cp nckhai-minio:/data ./minio-backup
 | GET | `/api/finance/stats` | Dashboard kinh phí |
 | POST | `/api/committees` | Tạo hội đồng |
 | POST | `/api/committees/review` | Chấm điểm |
+
+### Quản lý tài liệu (MinIO File Manager)
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/api/files` | Danh sách file (filter: category, mimeType, hasOcr, uploaderId, workId, search, page, limit) |
+| GET | `/api/files/stats` | Thống kê: tổng file, dung lượng, theo category, theo mimeType, 7 ngày gần nhất |
+| GET | `/api/files/:id` | Chi tiết file + metadata OCR |
+| GET | `/api/files/:id/download` | Presigned URL tải file từ MinIO |
+| DELETE | `/api/files/:id` | Xóa file (uploader hoặc Admin) |
+
+### Quản lý tác vụ (Job Queue)
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/api/jobs` | Lịch sử job của user (filter: status, queueName, page; admin có thể `?all=true`) |
+| GET | `/api/jobs/:id` | Chi tiết 1 job (polling từ frontend) |
+| GET | `/api/jobs/admin/stats` | Stats BullMQ + byStatus (Admin) |
+| POST | `/api/jobs/:id/retry` | Chạy lại job thất bại (Admin) |
+| DELETE | `/api/jobs/:id` | Xóa job record (Admin) |
+| POST | `/api/jobs/admin/clean` | Dọn jobs cũ `{olderThanHours}` (Admin) |
 
 ## Dữ liệu persist
 

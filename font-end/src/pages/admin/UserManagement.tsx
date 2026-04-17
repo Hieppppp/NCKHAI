@@ -19,7 +19,7 @@ const RoleIcons: Record<Role, typeof Shield> = {
 
 const RoleColors: Record<Role, string> = {
   [Role.ADMIN]: '#dc2626',
-  [Role.REVIEWER]: '#475569',
+  [Role.REVIEWER]: '#3b82f6',
   [Role.LECTURER]: '#2563eb',
   [Role.STUDENT]: '#059669',
 };

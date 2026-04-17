@@ -3,7 +3,7 @@ import {
   BookOpen,
   FileText,
   Users,
-  DollarSign,
+  Wallet,
   Library,
   Cpu,
   Settings,
@@ -11,6 +11,8 @@ import {
   PlusCircle,
   UserCog,
   Clock,
+  FolderOpen,
+  Activity,
 } from 'lucide-react';
 import { Role } from '../types';
 
@@ -28,9 +30,11 @@ export const mainMenuItems: MenuItem[] = [
   { key: 'publications', name: 'Công bố khoa học', icon: FileText, path: '/publications' },
   { key: 'committees', name: 'Hội đồng chấm điểm', icon: Users, path: '/committees' },
   { key: 'research-hours', name: 'Giờ chuẩn NCKH', icon: Clock, path: '/research-hours' },
-  { key: 'finance', name: 'Kinh phí & Khen thưởng', icon: DollarSign, path: '/finance' },
+  { key: 'finance', name: 'Tài chính & Thi đua', icon: Wallet, path: '/finance' },
   { key: 'library', name: 'Thư viện số', icon: Library, path: '/library' },
   { key: 'templates', name: 'Mẫu tài liệu', icon: FileText, path: '/templates' },
+  { key: 'files', name: 'Quản lý tài liệu', icon: FolderOpen, path: '/files' },
+  { key: 'jobs', name: 'Quản lý tác vụ', icon: Activity, path: '/jobs' },
   { key: 'ai-assistant', name: 'Trợ lý AI', icon: Cpu, path: '/ai' },
   { key: 'user-management', name: 'Quản lý người dùng', icon: UserCog, path: '/admin/users', roles: [Role.ADMIN] },
 ];

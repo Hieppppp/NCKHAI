@@ -120,7 +120,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           animation: t-slide-in .25s ease-out;
         }
         @keyframes t-slide-in { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
-        .t-msg { flex: 1; font-size: .85rem; font-weight: 600; color: #1e293b; }
+        .t-msg { flex: 1; font-size: .85rem; font-weight: 600; color: #1e40af; }
         .t-close { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 2px; display: flex; }
 
         .t-confirm-overlay {
@@ -146,7 +146,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         }
         .t-btn-confirm {
           padding: .625rem 1.5rem; border-radius: 10px; border: none;
-          background: linear-gradient(135deg, #1A237E, #334155); color: #fff;
+          background: linear-gradient(135deg, #1e40af, #2563eb); color: #fff;
           font-weight: 700; font-size: .85rem; cursor: pointer;
         }
         .t-btn-confirm.danger { background: linear-gradient(135deg, #dc2626, #ef4444); }

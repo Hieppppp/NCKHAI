@@ -96,7 +96,7 @@ export function Modal({ open, onClose, title, subtitle, children, width, footer 
           transition: border-color .15s;
         }
         .g-field input:focus, .g-field select:focus, .g-field textarea:focus {
-          border-color: var(--primary-indigo, #1A237E);
+          border-color: var(--primary-indigo, #1e40af);
         }
         .g-field textarea { resize: vertical; min-height: 70px; }
         .g-field select { cursor: pointer; }
@@ -107,7 +107,7 @@ export function Modal({ open, onClose, title, subtitle, children, width, footer 
           align-items: center; gap: .375rem; border: none; transition: all .15s;
         }
         .g-btn.primary {
-          background: var(--signature-gradient, linear-gradient(135deg, #1A237E, #334155));
+          background: var(--signature-gradient, linear-gradient(135deg, #1e40af, #2563eb));
           color: #fff;
         }
         .g-btn.primary:disabled { opacity: .5; cursor: not-allowed; }

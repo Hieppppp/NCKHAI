@@ -11,6 +11,14 @@ import { useToast } from '../../components/common/Toast';
 type ViewMode = 'visual' | 'json' | 'markdown' | 'text';
 type Tab = 'ocr' | 'plagiarism' | 'trends' | 'chat';
 
+const TYPE_LABELS: Record<string, string> = {
+  JOURNAL_ARTICLE: 'Bài báo', CONFERENCE_PAPER: 'Hội nghị', RESEARCH_PROJECT: 'Đề tài NCKH',
+  PATENT: 'Bằng sáng chế', TEXTBOOK: 'Giáo trình', THESIS: 'Luận văn',
+};
+const LEVEL_LABELS: Record<string, string> = {
+  UNIVERSITY: 'Cấp Trường', MINISTRY: 'Cấp Bộ', STATE: 'Cấp Nhà nước',
+};
+
 interface Annotation {
   text: string; type: string; confidence: number; page: number;
   bbox: { x: number; y: number; width: number; height: number };
@@ -114,12 +122,47 @@ export default function AiAnalysis() {
   const buildJsonOutput = () => {
     if (!extraction) return '';
     const ext = extraction.extraction || {};
+    const pages = ext.pages || [];
+    const allLines = ext.lineAnnotations || [];
+    const allWords = ext.annotations || [];
+
+    // Group annotations by page
+    const byPage = pages.map((p: any, idx: number) => {
+      const pageNum = p.page || idx + 1;
+      const pageLines = allLines.filter((a: any) => a.page === pageNum);
+      const pageWords = allWords.filter((a: any) => a.page === pageNum);
+      return {
+        page: pageNum,
+        size: { width: p.width || 595, height: p.height || 842 },
+        stats: {
+          lines: pageLines.length,
+          words: pageWords.length,
+          characters: pageLines.reduce((s: number, l: any) => s + (l.text?.length || 0), 0),
+        },
+        lines: pageLines.slice(0, 30).map((l: any) => ({
+          text: l.text,
+          confidence: l.confidence,
+          bbox: l.bbox,
+        })),
+      };
+    });
+
     return JSON.stringify({
-      metadata: { title: ext.title, authors: ext.authors, abstract: ext.abstract, keywords: ext.keywords || [] },
-      ocr: { engine: ext.engine, confidence: ext.confidence, totalPages: ext.pages?.length || 0 },
-      text: ext.text || '',
-      annotations: (ext.annotations || []).slice(0, 100),
-      lineAnnotations: (ext.lineAnnotations || []).slice(0, 50),
+      metadata: {
+        title: ext.title,
+        authors: ext.authors,
+        abstract: ext.abstract,
+        keywords: ext.keywords || [],
+      },
+      ocr: {
+        engine: ext.engine,
+        confidence: ext.confidence,
+        totalPages: pages.length,
+        totalLines: allLines.length,
+        totalWords: allWords.length,
+      },
+      pages: byPage,
+      fullText: (ext.text || '').substring(0, 3000) + (ext.text?.length > 3000 ? '... (truncated)' : ''),
     }, null, 2);
   };
 
@@ -319,7 +362,7 @@ export default function AiAnalysis() {
                                 style={{ position: 'absolute', left: a.bbox.x * s, top: a.bbox.y * s, width: a.bbox.width * s, height: a.bbox.height * s,
                                   border: `1.5px solid ${c}`, background: `${c}10`, borderRadius: 1, cursor: 'pointer' }}>
                                 {bboxLevel === 'line' && zoom >= 0.75 && (
-                                  <span style={{ position: 'absolute', top: '50%', left: 3, transform: 'translateY(-50%)', fontSize: Math.max(7, 9 * zoom), color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: a.bbox.width * s - 6 }}>{a.text}</span>
+                                  <span style={{ position: 'absolute', top: '50%', left: 3, transform: 'translateY(-50%)', fontSize: Math.max(7, 9 * zoom), color: '#1e40af', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: a.bbox.width * s - 6 }}>{a.text}</span>
                                 )}
                               </div>
                             );
@@ -362,12 +405,14 @@ export default function AiAnalysis() {
 
                 {/* JSON view */}
                 {viewMode === 'json' && (
-                  <div>
+                  <div className="json-view">
                     <div className="text-toolbar">
-                      <span className="text-info">Structured JSON</span>
+                      <span className="text-info">
+                        Structured JSON — {((ext.annotations || []).length + (ext.lineAnnotations || []).length).toLocaleString()} annotations across {ext.pages?.length || 1} pages
+                      </span>
                       <button className="copy-btn" onClick={() => handleCopy(buildJsonOutput())}>{copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />} {copied ? 'Đã copy' : 'Copy'}</button>
                     </div>
-                    <pre className="code-block dark">{buildJsonOutput()}</pre>
+                    <pre className="code-block dark json-pre">{buildJsonOutput()}</pre>
                   </div>
                 )}
 
@@ -395,38 +440,109 @@ export default function AiAnalysis() {
 
       {/* ─── TAB: Plagiarism ─── */}
       {activeTab === 'plagiarism' && (
-        <div className="surface-card" style={{ padding: '2rem', maxWidth: 800 }}>
-          <div className="card-header"><Search size={18} color="#dc2626" /><span>Kiểm tra trùng lặp / Đạo văn</span></div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--on-surface-muted)', marginBottom: 16 }}>So sánh nội dung với toàn bộ kho dữ liệu nghiên cứu trong hệ thống</p>
-          <textarea value={plagiarismText} onChange={e => setPlagiarismText(e.target.value)} placeholder="Dán nội dung cần kiểm tra (hoặc upload file ở tab OCR)..." className="plag-textarea" />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--on-surface-muted)' }}>{plagiarismText.length} ký tự (tối thiểu 20)</span>
-            <button onClick={handleCheckPlagiarism} disabled={checkingPlagiarism || plagiarismText.length < 20} className="btn-check">
-              {checkingPlagiarism ? <Loader2 size={16} className="spin" /> : <Search size={16} />}
-              {checkingPlagiarism ? 'Đang kiểm tra...' : 'Kiểm tra đạo văn'}
-            </button>
+        <div className="plag-wrap">
+          <div className="surface-card plag-input-card">
+            <div className="card-header"><Search size={18} color="#dc2626" /><span>Kiểm tra trùng lặp / Đạo văn</span></div>
+            <p className="plag-desc">So sánh văn bản với toàn bộ kho dữ liệu NCKH nội bộ - đánh giá mức độ tương đồng, cảnh báo đạo văn</p>
+            <textarea value={plagiarismText} onChange={e => setPlagiarismText(e.target.value)} placeholder="Dán nội dung cần kiểm tra hoặc upload file ở tab OCR..." className="plag-textarea" />
+            <div className="plag-toolbar">
+              <span className="plag-count">{plagiarismText.length} ký tự · {plagiarismText.split(/\s+/).filter(Boolean).length} từ</span>
+              <button onClick={handleCheckPlagiarism} disabled={checkingPlagiarism || plagiarismText.length < 20} className="btn-check">
+                {checkingPlagiarism ? <Loader2 size={16} className="spin" /> : <Search size={16} />}
+                {checkingPlagiarism ? 'Đang phân tích...' : 'Kiểm tra đạo văn'}
+              </button>
+            </div>
           </div>
 
           {similarity && (
-            <div className="plag-result">
-              <div className={`plag-score ${similarity.maxSimilarity > 30 ? 'danger' : 'safe'}`}>
-                {similarity.maxSimilarity > 30 ? <AlertTriangle size={24} /> : <CheckCircle size={24} />}
-                <div>
-                  <span className="plag-pct">{similarity.maxSimilarity}%</span>
-                  <span className="plag-label">{similarity.maxSimilarity > 30 ? 'Phát hiện trùng lặp cao' : 'Không phát hiện trùng lặp đáng kể'}</span>
+            <>
+              {/* Tổng quan */}
+              <div className="plag-overview">
+                <div className={`plag-main-score ${similarity.riskLevel}`}>
+                  <div className="plag-ring">
+                    <svg viewBox="0 0 36 36">
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="3" />
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#fff" strokeWidth="3"
+                        strokeDasharray={`${Math.min(similarity.maxSimilarity, 100)} ${100 - Math.min(similarity.maxSimilarity, 100)}`}
+                        strokeLinecap="round" transform="rotate(-90 18 18)" />
+                    </svg>
+                    <div className="plag-ring-center">
+                      <span>{similarity.maxSimilarity.toFixed(1)}%</span>
+                      <small>Cao nhất</small>
+                    </div>
+                  </div>
+                  <div className="plag-verdict">
+                    {similarity.riskLevel === 'critical' || similarity.riskLevel === 'high'
+                      ? <AlertTriangle size={24} />
+                      : similarity.riskLevel === 'medium'
+                      ? <Search size={24} />
+                      : <CheckCircle size={24} />}
+                    <strong>{similarity.verdict}</strong>
+                    <p>So sánh với {similarity.totalCompared} công trình trong hệ thống</p>
+                  </div>
+                </div>
+
+                <div className="plag-stats-grid">
+                  <div className="plag-stat"><span className="plag-stat-val">{similarity.maxSimilarity.toFixed(1)}%</span><span className="plag-stat-label">Tương đồng cao nhất</span></div>
+                  <div className="plag-stat"><span className="plag-stat-val">{similarity.avgSimilarity.toFixed(1)}%</span><span className="plag-stat-label">Tương đồng trung bình</span></div>
+                  <div className="plag-stat"><span className="plag-stat-val" style={{ color: similarity.highRiskCount > 0 ? '#dc2626' : '#10b981' }}>{similarity.highRiskCount}</span><span className="plag-stat-label">Công trình trùng cao</span></div>
+                  <div className="plag-stat"><span className="plag-stat-val">{similarity.totalCompared}</span><span className="plag-stat-label">Tổng so sánh</span></div>
                 </div>
               </div>
+
+              {/* Chi tiết từng công trình */}
               {similarity.results?.length > 0 && (
-                <div className="plag-list">
-                  <h4>Kết quả so sánh chi tiết</h4>
-                  {similarity.results.slice(0, 10).map((r: any) => (
-                    <div key={r.workId} className="plag-item">
-                      <span className="plag-item-title">{r.title}</span>
-                      <span className={`plag-item-pct ${r.similarity > 30 ? 'high' : ''}`}>{r.similarity}%</span>
+                <div className="surface-card plag-detail-card">
+                  <h3 className="plag-section-title"><Search size={16} /> Chi tiết so sánh ({similarity.results.length} công trình)</h3>
+                  <div className="plag-items">
+                    {similarity.results.slice(0, 15).map((r: any) => {
+                      const risk = r.riskLevel || (r.similarity > 30 ? 'high' : r.similarity > 15 ? 'medium' : 'safe');
+                      return (
+                        <div key={r.workId} className={`plag-work-item risk-${risk}`}>
+                          <div className="plag-work-bar" style={{ width: `${Math.min(r.similarity * 2, 100)}%` }} />
+                          <div className="plag-work-content">
+                            <div className="plag-work-head">
+                              <span className="plag-work-title">{r.title}</span>
+                              <span className={`plag-work-pct ${risk}`}>{r.similarity.toFixed(1)}%</span>
+                            </div>
+                            <div className="plag-work-meta">
+                              {r.authors && <span>{r.authors}</span>}
+                              {r.user?.department && <><span>·</span><span>{r.user.department}</span></>}
+                              {r.createdAt && <><span>·</span><span>{new Date(r.createdAt).getFullYear()}</span></>}
+                              <span className={`plag-risk-badge ${risk}`}>
+                                {risk === 'high' ? 'Cao' : risk === 'medium' ? 'TB' : risk === 'low' ? 'Thấp' : 'An toàn'}
+                              </span>
+                            </div>
+                            {r.keywords?.length > 0 && (
+                              <div className="plag-work-kws">
+                                {r.keywords.slice(0, 4).map((kw: string) => <span key={kw} className="plag-kw">{kw}</span>)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="plag-guide">
+                    <h4>Hướng dẫn đánh giá kết quả</h4>
+                    <div className="plag-guide-items">
+                      <div><span className="plag-guide-dot critical" /><strong>&ge;50%:</strong> Đạo văn nghiêm trọng - cần xem xét lại</div>
+                      <div><span className="plag-guide-dot high" /><strong>30-50%:</strong> Trùng lặp đáng kể - cần trích dẫn</div>
+                      <div><span className="plag-guide-dot medium" /><strong>15-30%:</strong> Tương đồng trung bình - nên tham khảo</div>
+                      <div><span className="plag-guide-dot safe" /><strong>&lt;15%:</strong> An toàn - nội dung gốc</div>
                     </div>
-                  ))}
+                  </div>
                 </div>
               )}
+            </>
+          )}
+
+          {!similarity && !checkingPlagiarism && (
+            <div className="surface-card plag-empty">
+              <Search size={48} style={{ opacity: .15 }} />
+              <h3>Chưa có kết quả</h3>
+              <p>Nhập văn bản và nhấn "Kiểm tra đạo văn" để bắt đầu phân tích</p>
             </div>
           )}
         </div>
@@ -434,66 +550,187 @@ export default function AiAnalysis() {
 
       {/* ─── TAB: Trends ─── */}
       {activeTab === 'trends' && (
-        <div className="surface-card" style={{ padding: '2rem' }}>
-          <div className="card-header">
-            <BarChart3 size={18} color="var(--primary-violet)" />
-            <span>Xu hướng Nghiên cứu</span>
-            <button onClick={handleLoadTrends} disabled={loadingTrends} className="btn-load-trends">
-              {loadingTrends ? <Loader2 size={14} className="spin" /> : <TrendingUp size={14} />}
-              {loadingTrends ? 'Đang phân tích...' : 'Phân tích xu hướng'}
-            </button>
-          </div>
+        <div className="trends-wrap">
+          {!trends && !loadingTrends && (
+            <div className="surface-card trends-empty">
+              <BarChart3 size={48} style={{ opacity: .15 }} />
+              <h3>Phân tích xu hướng nghiên cứu</h3>
+              <p>Thống kê toàn diện: từ khóa hot, tăng trưởng, tác giả top, phân bố khoa/cấp/loại</p>
+              <button onClick={handleLoadTrends} className="btn-check" style={{ background: 'var(--signature-gradient)' }}>
+                <TrendingUp size={16} /> Bắt đầu phân tích
+              </button>
+            </div>
+          )}
 
-          {trends ? (
-            <div className="trends-grid">
-              <div className="trend-section">
-                <h4>Top từ khóa nghiên cứu</h4>
-                <div className="trend-tags">
-                  {trends.topKeywords?.slice(0, 15).map((kw: any) => (
-                    <span key={kw.keyword} className="trend-tag" style={{ background: `hsl(${(kw.count * 50) % 360}, 70%, 95%)`, color: `hsl(${(kw.count * 50) % 360}, 70%, 35%)` }}>
-                      {kw.keyword} <strong>{kw.count}</strong>
+          {loadingTrends && (
+            <div className="surface-card trends-empty">
+              <Loader2 size={40} className="spin" color="var(--primary-indigo)" />
+              <h3>Đang phân tích dữ liệu...</h3>
+              <p>Tổng hợp từ toàn bộ kho công trình NCKH</p>
+            </div>
+          )}
+
+          {trends && (
+            <>
+              {/* Overview stats */}
+              <div className="trends-overview">
+                <div className="surface-card trend-overview-stat primary">
+                  <BookOpen size={22} />
+                  <div>
+                    <span className="trend-overview-val">{trends.overview?.total || 0}</span>
+                    <span className="trend-overview-label">Tổng công trình</span>
+                  </div>
+                </div>
+                <div className="surface-card trend-overview-stat">
+                  <TrendingUp size={22} />
+                  <div>
+                    <span className="trend-overview-val" style={{ color: (trends.overview?.growthRate || 0) >= 0 ? '#10b981' : '#dc2626' }}>
+                      {(trends.overview?.growthRate || 0) >= 0 ? '+' : ''}{trends.overview?.growthRate || 0}%
                     </span>
-                  ))}
+                    <span className="trend-overview-label">Tăng trưởng YoY</span>
+                  </div>
+                </div>
+                <div className="surface-card trend-overview-stat">
+                  <Sparkles size={22} />
+                  <div>
+                    <span className="trend-overview-val">{trends.overview?.avgAiScore || 0}</span>
+                    <span className="trend-overview-label">Điểm AI TB</span>
+                  </div>
+                </div>
+                <div className="surface-card trend-overview-stat">
+                  <BarChart3 size={22} />
+                  <div>
+                    <span className="trend-overview-val">{trends.topDepartments?.length || 0}</span>
+                    <span className="trend-overview-label">Khoa tham gia</span>
+                  </div>
                 </div>
               </div>
-              <div className="trend-section">
-                <h4>Phân bố theo loại</h4>
-                {trends.byType?.map((t: any) => (
-                  <div key={t.type} className="trend-bar-row">
-                    <span className="trend-bar-label">{t.type}</span>
-                    <div className="trend-bar"><div className="trend-bar-fill" style={{ width: `${Math.min((t.count / Math.max(...trends.byType.map((x: any) => x.count), 1)) * 100, 100)}%` }} /></div>
-                    <span className="trend-bar-count">{t.count}</span>
+
+              {/* AI Insights */}
+              {trends.insights?.length > 0 && (
+                <div className="surface-card trend-insights">
+                  <h3><Sparkles size={16} /> Phân tích AI</h3>
+                  <div className="trend-insight-list">
+                    {trends.insights.map((insight: string, i: number) => (
+                      <div key={i} className="trend-insight-item">
+                        <span className="trend-insight-num">{i + 1}</span>
+                        <span>{insight}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div className="trend-section">
-                <h4>Phân bố theo cấp độ</h4>
-                {trends.byLevel?.map((l: any) => (
-                  <div key={l.level} className="trend-bar-row">
-                    <span className="trend-bar-label">{l.level}</span>
-                    <div className="trend-bar"><div className="trend-bar-fill purple" style={{ width: `${Math.min((l.count / Math.max(...trends.byLevel.map((x: any) => x.count), 1)) * 100, 100)}%` }} /></div>
-                    <span className="trend-bar-count">{l.count}</span>
-                  </div>
-                ))}
-              </div>
-              {trends.byYear?.length > 0 && (
-                <div className="trend-section">
-                  <h4>Theo năm</h4>
-                  {trends.byYear.map((y: any) => (
-                    <div key={y.year} className="trend-bar-row">
-                      <span className="trend-bar-label">{y.year}</span>
-                      <div className="trend-bar"><div className="trend-bar-fill green" style={{ width: `${Math.min((y.count / Math.max(...trends.byYear.map((x: any) => x.count), 1)) * 100, 100)}%` }} /></div>
-                      <span className="trend-bar-count">{y.count}</span>
-                    </div>
-                  ))}
                 </div>
               )}
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--on-surface-muted)' }}>
-              <BarChart3 size={48} style={{ opacity: 0.3, marginBottom: 12 }} />
-              <p>Nhấn "Phân tích xu hướng" để xem thống kê nghiên cứu</p>
-            </div>
+
+              <div className="trends-grid">
+                {/* Top Keywords */}
+                <div className="surface-card trend-card">
+                  <h3><Sparkles size={16} /> Top từ khóa nghiên cứu</h3>
+                  <div className="trend-keywords">
+                    {trends.topKeywords?.slice(0, 20).map((kw: any, idx: number) => (
+                      <div key={kw.keyword} className="trend-kw-item">
+                        <span className="trend-kw-rank">{idx + 1}</span>
+                        <span className="trend-kw-name">{kw.keyword}</span>
+                        <div className="trend-kw-bar-wrap">
+                          <div className="trend-kw-bar" style={{ width: `${Math.max((kw.count / (trends.topKeywords[0]?.count || 1)) * 100, 8)}%` }} />
+                        </div>
+                        <span className="trend-kw-count">{kw.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* By Year - Growth chart */}
+                <div className="surface-card trend-card">
+                  <h3><TrendingUp size={16} /> Tăng trưởng theo năm</h3>
+                  {trends.byYear?.length > 0 ? (
+                    <>
+                      <div className="trend-bar-chart">
+                        {trends.byYear.map((y: any) => {
+                          const max = Math.max(...trends.byYear.map((x: any) => x.count), 1);
+                          const pct = (y.count / max) * 100;
+                          return (
+                            <div key={y.year} className="trend-bar-col">
+                              <div className="trend-bar-col-val">{y.count}</div>
+                              <div className="trend-bar-col-bar" style={{ height: `${pct}%` }} />
+                              <div className="trend-bar-col-label">{y.year}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : <p className="trend-empty">Chưa đủ dữ liệu theo năm</p>}
+                </div>
+
+                {/* By Type */}
+                <div className="surface-card trend-card">
+                  <h3><FileJson size={16} /> Phân bố theo loại hình</h3>
+                  <div className="trend-bars">
+                    {trends.byType?.map((t: any) => (
+                      <div key={t.type} className="trend-bar-row">
+                        <span className="trend-bar-label">{TYPE_LABELS[t.type] || t.type}</span>
+                        <div className="trend-bar"><div className="trend-bar-fill" style={{ width: `${t.percentage}%` }} /></div>
+                        <span className="trend-bar-pct">{t.percentage}%</span>
+                        <span className="trend-bar-count">{t.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* By Level */}
+                <div className="surface-card trend-card">
+                  <h3><BarChart3 size={16} /> Phân bố theo cấp độ</h3>
+                  <div className="trend-bars">
+                    {trends.byLevel?.map((l: any) => (
+                      <div key={l.level} className="trend-bar-row">
+                        <span className="trend-bar-label">{LEVEL_LABELS[l.level] || l.level}</span>
+                        <div className="trend-bar"><div className="trend-bar-fill green" style={{ width: `${l.percentage}%` }} /></div>
+                        <span className="trend-bar-pct">{l.percentage}%</span>
+                        <span className="trend-bar-count">{l.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Top Authors */}
+                {trends.topAuthors?.length > 0 && (
+                  <div className="surface-card trend-card">
+                    <h3><BookOpen size={16} /> Top tác giả nhiều công trình</h3>
+                    <div className="trend-author-list">
+                      {trends.topAuthors.slice(0, 8).map((a: any, idx: number) => (
+                        <div key={idx} className="trend-author-item">
+                          <span className="trend-author-rank">#{idx + 1}</span>
+                          <div className="trend-author-avatar">{(a.name || 'U')[0]}</div>
+                          <div className="trend-author-info">
+                            <span className="trend-author-name">{a.name}</span>
+                            {a.department && <span className="trend-author-dept">{a.department}</span>}
+                          </div>
+                          <span className="trend-author-count">{a.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top Departments */}
+                {trends.topDepartments?.length > 0 && (
+                  <div className="surface-card trend-card">
+                    <h3><BarChart3 size={16} /> Top khoa / phòng ban</h3>
+                    <div className="trend-bars">
+                      {trends.topDepartments.slice(0, 6).map((d: any) => {
+                        const max = trends.topDepartments[0].count;
+                        return (
+                          <div key={d.department} className="trend-bar-row">
+                            <span className="trend-bar-label" title={d.department}>{d.department.substring(0, 20)}</span>
+                            <div className="trend-bar"><div className="trend-bar-fill" style={{ width: `${(d.count / max) * 100}%` }} /></div>
+                            <span className="trend-bar-count">{d.count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}
@@ -573,11 +810,11 @@ const aiStyles = `
   .kw { padding: 2px 8px; background: #eef2ff; color: var(--primary-indigo); border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
 
   .summarize-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--surface-low); }
-  .btn-summarize { background: linear-gradient(135deg, #4f46e5, #475569); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px; width: 100%; justify-content: center; }
+  .btn-summarize { background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px; width: 100%; justify-content: center; }
   .btn-summarize:disabled { opacity: 0.6; cursor: not-allowed; }
   .summary-box { margin-top: 10px; padding: 12px; background: #f0fdf4; border-radius: 8px; border-left: 3px solid #10b981; }
   .summary-header { font-size: 0.7rem; font-weight: 800; color: #059669; display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
-  .summary-box p { font-size: 0.8rem; line-height: 1.6; color: #1e293b; }
+  .summary-box p { font-size: 0.8rem; line-height: 1.6; color: #1e40af; }
 
   /* Preview tabs */
   .view-tabs { margin-left: auto; display: flex; gap: 3px; }
@@ -590,9 +827,13 @@ const aiStyles = `
   .text-info { font-size: 0.7rem; color: var(--on-surface-muted); font-weight: 600; }
   .copy-btn { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--surface-variant); background: var(--surface-lowest); cursor: pointer; font-size: 0.7rem; font-weight: 600; color: var(--on-surface-muted); }
   .text-content { background: var(--surface-low); padding: 14px; border-radius: 10px; font-size: 0.8rem; line-height: 1.7; max-height: 500px; overflow: auto; white-space: pre-wrap; font-family: inherit; }
-  .code-block { padding: 14px; border-radius: 10px; font-size: 0.72rem; line-height: 1.6; max-height: 500px; overflow: auto; font-family: "JetBrains Mono", "Fira Code", monospace; }
-  .code-block.dark { background: #1e293b; color: #e2e8f0; }
-  .code-block.light { background: #fffbeb; color: #1e293b; white-space: pre-wrap; }
+  .code-block { padding: 14px; border-radius: 10px; font-size: 0.72rem; line-height: 1.6; max-height: 600px; overflow: auto; font-family: "JetBrains Mono", "Fira Code", monospace; white-space: pre-wrap; word-break: break-word; }
+  .code-block.dark { background: #0f172a; color: #e2e8f0; border: 1px solid #1e293b; }
+  .json-view { width: 100%; }
+  .json-pre { max-width: 100%; }
+  .json-pre::-webkit-scrollbar { height: 8px; }
+  .json-pre::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+  .code-block.light { background: #fffbeb; color: #1e40af; white-space: pre-wrap; }
 
   /* BBox */
   .bbox-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
@@ -617,39 +858,131 @@ const aiStyles = `
   .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
   .dot.green { background: #10b981; } .dot.yellow { background: #f59e0b; } .dot.red { background: #ef4444; }
 
-  /* Plagiarism */
-  .plag-textarea { width: 100%; min-height: 160px; padding: 14px; border: 1.5px solid var(--surface-variant); border-radius: 12px; font-size: 0.875rem; font-family: inherit; outline: none; resize: vertical; background: var(--surface-lowest); }
+  /* Plagiarism - NEW */
+  .plag-wrap { display: flex; flex-direction: column; gap: 1rem; }
+  .plag-input-card { padding: 1.5rem !important; }
+  .plag-desc { font-size: .8rem; color: var(--on-surface-muted); margin-bottom: 1rem; }
+  .plag-textarea { width: 100%; min-height: 140px; padding: 14px; border: 1.5px solid var(--surface-variant); border-radius: 10px; font-size: .875rem; font-family: inherit; outline: none; resize: vertical; background: var(--surface-lowest); }
   .plag-textarea:focus { border-color: var(--primary-indigo); }
-  .btn-check { background: #dc2626; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-  .btn-check:disabled { opacity: 0.5; cursor: not-allowed; }
-  .plag-result { margin-top: 20px; }
-  .plag-score { display: flex; align-items: center; gap: 16px; padding: 20px; border-radius: 12px; margin-bottom: 16px; }
-  .plag-score.safe { background: #d1fae5; color: #065f46; }
-  .plag-score.danger { background: #fee2e2; color: #991b1b; }
-  .plag-pct { font-size: 2rem; font-weight: 800; display: block; line-height: 1; }
-  .plag-label { font-size: 0.85rem; font-weight: 600; }
-  .plag-list h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
-  .plag-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--surface-variant); }
-  .plag-item-title { flex: 1; font-size: 0.85rem; color: var(--on-surface-muted); margin-right: 12px; }
-  .plag-item-pct { font-weight: 800; font-size: 0.9rem; color: var(--on-surface-muted); }
-  .plag-item-pct.high { color: #dc2626; }
+  .plag-toolbar { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  .plag-count { font-size: .75rem; color: var(--on-surface-muted); font-weight: 600; }
+  .btn-check { background: #dc2626; color: #fff; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: .85rem; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .btn-check:disabled { opacity: .5; cursor: not-allowed; }
 
-  /* Trends */
-  .btn-load-trends { margin-left: auto; background: var(--primary-indigo); color: white; border: none; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px; }
-  .btn-load-trends:disabled { opacity: 0.5; }
-  .trends-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-  .trend-section { }
-  .trend-section h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 10px; }
-  .trend-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-  .trend-tag { padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 4px; }
-  .trend-tag strong { font-size: 0.65rem; opacity: 0.7; }
-  .trend-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-  .trend-bar-label { font-size: 0.75rem; color: var(--on-surface-muted); width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plag-empty { text-align: center; padding: 3rem !important; color: var(--on-surface-muted); }
+  .plag-empty h3 { font-size: 1rem; margin: 1rem 0 .25rem; color: var(--on-surface); }
+  .plag-empty p { font-size: .85rem; }
+
+  .plag-overview { display: grid; grid-template-columns: 1fr 380px; gap: 1rem; align-items: stretch; }
+  .plag-main-score { display: flex; align-items: center; gap: 1.5rem; padding: 2rem; border-radius: 16px; color: #fff; }
+  .plag-main-score.critical, .plag-main-score.high { background: linear-gradient(135deg, #dc2626, #ef4444); }
+  .plag-main-score.medium { background: linear-gradient(135deg, #d97706, #f59e0b); }
+  .plag-main-score.low, .plag-main-score.safe { background: linear-gradient(135deg, #059669, #10b981); }
+  .plag-ring { position: relative; width: 110px; height: 110px; flex-shrink: 0; }
+  .plag-ring svg { width: 100%; height: 100%; }
+  .plag-ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+  .plag-ring-center span { display: block; font-size: 1.5rem; font-weight: 800; }
+  .plag-ring-center small { font-size: .65rem; opacity: .8; }
+  .plag-verdict { flex: 1; }
+  .plag-verdict strong { display: block; font-size: 1rem; margin-bottom: .375rem; }
+  .plag-verdict p { font-size: .8rem; opacity: .85; }
+
+  .plag-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+  .plag-stat { background: var(--surface-lowest); padding: 1rem; border-radius: 12px; text-align: center; box-shadow: 0 1px 3px rgba(15,23,42,.04); }
+  .plag-stat-val { display: block; font-size: 1.5rem; font-weight: 800; color: var(--primary-indigo); line-height: 1; margin-bottom: 4px; }
+  .plag-stat-label { font-size: .7rem; color: var(--on-surface-muted); font-weight: 600; }
+
+  .plag-detail-card { padding: 1.5rem !important; }
+  .plag-section-title { display: flex; align-items: center; gap: 6px; font-size: .95rem; font-weight: 700; margin-bottom: 1rem; }
+  .plag-items { display: flex; flex-direction: column; gap: .625rem; }
+  .plag-work-item { position: relative; padding: 1rem; background: var(--surface-low); border-radius: 10px; overflow: hidden; }
+  .plag-work-bar { position: absolute; top: 0; left: 0; bottom: 0; opacity: .15; z-index: 0; }
+  .plag-work-item.risk-high .plag-work-bar { background: #dc2626; }
+  .plag-work-item.risk-medium .plag-work-bar { background: #d97706; }
+  .plag-work-item.risk-low .plag-work-bar { background: #0891b2; }
+  .plag-work-item.risk-safe .plag-work-bar { background: #10b981; }
+  .plag-work-content { position: relative; z-index: 1; }
+  .plag-work-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+  .plag-work-title { font-weight: 700; font-size: .875rem; flex: 1; }
+  .plag-work-pct { font-size: 1.125rem; font-weight: 800; white-space: nowrap; }
+  .plag-work-pct.high { color: #dc2626; }
+  .plag-work-pct.medium { color: #d97706; }
+  .plag-work-pct.low { color: #0891b2; }
+  .plag-work-pct.safe { color: #10b981; }
+  .plag-work-meta { display: flex; gap: 6px; align-items: center; font-size: .7rem; color: var(--on-surface-muted); flex-wrap: wrap; margin-bottom: 6px; }
+  .plag-risk-badge { margin-left: auto; padding: 2px 8px; border-radius: 100px; font-size: .6rem; font-weight: 800; text-transform: uppercase; }
+  .plag-risk-badge.high { background: #fee2e2; color: #dc2626; }
+  .plag-risk-badge.medium { background: #fef3c7; color: #d97706; }
+  .plag-risk-badge.low { background: #dbeafe; color: #0891b2; }
+  .plag-risk-badge.safe { background: #d1fae5; color: #059669; }
+  .plag-work-kws { display: flex; gap: 4px; flex-wrap: wrap; }
+  .plag-kw { background: #eff6ff; color: var(--primary-indigo); padding: 1px 8px; border-radius: 4px; font-size: .65rem; font-weight: 700; }
+
+  .plag-guide { margin-top: 1.25rem; padding: 1rem; background: var(--surface-low); border-radius: 10px; }
+  .plag-guide h4 { font-size: .8rem; font-weight: 700; margin-bottom: .625rem; }
+  .plag-guide-items { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: .75rem; color: var(--on-surface-muted); }
+  .plag-guide-items > div { display: flex; align-items: center; gap: 6px; }
+  .plag-guide-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .plag-guide-dot.critical { background: #dc2626; }
+  .plag-guide-dot.high { background: #f59e0b; }
+  .plag-guide-dot.medium { background: #3b82f6; }
+  .plag-guide-dot.safe { background: #10b981; }
+
+  /* Trends - NEW */
+  .trends-wrap { display: flex; flex-direction: column; gap: 1rem; }
+  .trends-empty { text-align: center; padding: 3rem !important; color: var(--on-surface-muted); display: flex; flex-direction: column; align-items: center; gap: .625rem; }
+  .trends-empty h3 { font-size: 1.125rem; color: var(--on-surface); }
+  .trends-empty p { font-size: .85rem; max-width: 400px; }
+
+  .trends-overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .trend-overview-stat { display: flex; align-items: center; gap: 1rem; padding: 1.25rem !important; }
+  .trend-overview-stat > svg { color: var(--on-surface-muted); }
+  .trend-overview-stat.primary > svg { color: var(--primary-indigo); }
+  .trend-overview-val { display: block; font-size: 1.5rem; font-weight: 800; color: var(--on-surface); line-height: 1; }
+  .trend-overview-label { font-size: .7rem; color: var(--on-surface-muted); font-weight: 600; }
+
+  .trend-insights { padding: 1.5rem !important; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important; border: 1.5px solid #bfdbfe; }
+  .trend-insights h3 { display: flex; align-items: center; gap: 8px; font-size: .95rem; font-weight: 700; color: var(--primary-indigo); margin-bottom: .75rem; }
+  .trend-insight-list { display: flex; flex-direction: column; gap: .5rem; }
+  .trend-insight-item { display: flex; gap: 10px; align-items: flex-start; font-size: .85rem; line-height: 1.5; color: var(--on-surface); }
+  .trend-insight-num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--primary-indigo); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .7rem; font-weight: 800; }
+
+  .trends-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .trend-card { padding: 1.5rem !important; }
+  .trend-card h3 { display: flex; align-items: center; gap: 6px; font-size: .9rem; font-weight: 700; margin-bottom: 1rem; }
+  .trend-empty { font-size: .8rem; color: var(--on-surface-muted); padding: 1rem 0; text-align: center; }
+
+  .trend-keywords { display: flex; flex-direction: column; gap: 6px; max-height: 400px; overflow-y: auto; }
+  .trend-kw-item { display: flex; align-items: center; gap: 8px; font-size: .8rem; }
+  .trend-kw-rank { width: 22px; font-weight: 800; color: var(--on-surface-muted); font-size: .7rem; }
+  .trend-kw-name { flex-shrink: 0; min-width: 100px; max-width: 140px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trend-kw-bar-wrap { flex: 1; height: 6px; background: var(--surface-low); border-radius: 3px; overflow: hidden; }
+  .trend-kw-bar { height: 100%; background: var(--signature-gradient); border-radius: 3px; transition: width .6s; }
+  .trend-kw-count { font-weight: 800; min-width: 24px; text-align: right; color: var(--primary-indigo); }
+
+  .trend-bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 220px; padding: .5rem 0; border-bottom: 1.5px solid var(--surface-variant); }
+  .trend-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .trend-bar-col-val { font-size: .75rem; font-weight: 800; color: var(--primary-indigo); }
+  .trend-bar-col-bar { width: 100%; max-width: 60px; background: var(--signature-gradient); border-radius: 6px 6px 0 0; min-height: 8px; transition: height .6s; }
+  .trend-bar-col-label { font-size: .7rem; color: var(--on-surface-muted); font-weight: 600; }
+
+  .trend-bars { display: flex; flex-direction: column; gap: 8px; }
+  .trend-bar-row { display: flex; align-items: center; gap: 8px; font-size: .8rem; }
+  .trend-bar-label { flex-shrink: 0; min-width: 110px; max-width: 140px; color: var(--on-surface-muted); font-weight: 600; font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .trend-bar { flex: 1; height: 8px; background: var(--surface-low); border-radius: 4px; overflow: hidden; }
-  .trend-bar-fill { height: 100%; background: var(--primary-indigo); border-radius: 4px; transition: width 0.6s ease; }
-  .trend-bar-fill.purple { background: #475569; }
-  .trend-bar-fill.green { background: #059669; }
-  .trend-bar-count { font-size: 0.75rem; font-weight: 800; min-width: 20px; text-align: right; }
+  .trend-bar-fill { height: 100%; background: var(--primary-indigo); border-radius: 4px; transition: width .6s; }
+  .trend-bar-fill.green { background: #10b981; }
+  .trend-bar-pct { font-size: .7rem; color: var(--on-surface-muted); font-weight: 600; min-width: 38px; text-align: right; }
+  .trend-bar-count { font-weight: 800; min-width: 24px; text-align: right; color: var(--on-surface); font-size: .75rem; }
+
+  .trend-author-list { display: flex; flex-direction: column; gap: 8px; }
+  .trend-author-item { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--surface-low); border-radius: 8px; }
+  .trend-author-rank { font-size: .7rem; font-weight: 800; color: var(--on-surface-muted); width: 24px; }
+  .trend-author-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--signature-gradient); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .8rem; flex-shrink: 0; }
+  .trend-author-info { flex: 1; min-width: 0; }
+  .trend-author-name { display: block; font-weight: 700; font-size: .8rem; }
+  .trend-author-dept { font-size: .65rem; color: var(--on-surface-muted); }
+  .trend-author-count { font-weight: 800; color: var(--primary-indigo); font-size: 1rem; }
 
   /* Chat */
   .chat-container { display: flex; flex-direction: column; height: 560px; padding: 0 !important; overflow: hidden; }

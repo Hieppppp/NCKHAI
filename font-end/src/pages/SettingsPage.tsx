@@ -271,17 +271,17 @@ export default function SettingsPage() {
 
               {sysInfo && (
                 <div className="st-info-grid">
-                  <div className="st-info-item"><Server size={16} color="#4f46e5" /><div><span className="st-info-label">Phiên bản</span><strong>v{sysInfo.version}</strong></div></div>
+                  <div className="st-info-item"><Server size={16} color="#2563eb" /><div><span className="st-info-label">Phiên bản</span><strong>v{sysInfo.version}</strong></div></div>
                   <div className="st-info-item"><Database size={16} color="#059669" /><div><span className="st-info-label">Cơ sở dữ liệu</span><strong>{sysInfo.database}</strong></div></div>
-                  <div className="st-info-item"><Monitor size={16} color="#475569" /><div><span className="st-info-label">AI Engine</span><strong>{sysInfo.aiEngine}</strong></div></div>
+                  <div className="st-info-item"><Monitor size={16} color="#3b82f6" /><div><span className="st-info-label">AI Engine</span><strong>{sysInfo.aiEngine}</strong></div></div>
                   <div className="st-info-item"><HardDrive size={16} color="#d97706" /><div><span className="st-info-label">File Storage</span><strong>{sysInfo.storage}</strong></div></div>
 
                   <div className="st-info-stats">
                     <h3>Thống kê hệ thống</h3>
                     <div className="st-info-stat-grid">
-                      <div className="st-info-stat"><Users size={18} color="#4f46e5" /><span>{sysInfo.stats.users}</span><small>Người dùng</small></div>
+                      <div className="st-info-stat"><Users size={18} color="#2563eb" /><span>{sysInfo.stats.users}</span><small>Người dùng</small></div>
                       <div className="st-info-stat"><BookOpen size={18} color="#059669" /><span>{sysInfo.stats.works}</span><small>Công trình</small></div>
-                      <div className="st-info-stat"><FileText size={18} color="#475569" /><span>{sysInfo.stats.publications}</span><small>Công bố</small></div>
+                      <div className="st-info-stat"><FileText size={18} color="#3b82f6" /><span>{sysInfo.stats.publications}</span><small>Công bố</small></div>
                       <div className="st-info-stat"><Library size={18} color="#d97706" /><span>{sysInfo.stats.library}</span><small>Thư viện</small></div>
                     </div>
                   </div>
@@ -301,7 +301,7 @@ const stStyles = `
   .st{display:flex;flex-direction:column;gap:1.25rem;padding-bottom:3rem}
   .st-loading{display:flex;justify-content:center;padding:4rem}
 
-  .st-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 40%,#334155 100%);border-radius:20px;padding:2rem 2.5rem;color:#fff}
+  .st-hero{background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 40%,#2563eb 100%);border-radius:20px;padding:2rem 2.5rem;color:#fff}
   .st-hero h1{font-size:1.75rem;font-weight:800;color:#fff;margin-bottom:.25rem}
   .st-hero p{font-size:.9rem;opacity:.85}
 

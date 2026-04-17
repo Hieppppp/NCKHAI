@@ -56,7 +56,7 @@ export function TemplateEditor({ content, onChange, readOnly }: TemplateEditorPr
   if (!editor) return null;
 
   const insertPlaceholder = (key: string) => {
-    editor.chain().focus().insertContent(`<span data-type="placeholder" style="background:#eef2ff;color:#4f46e5;padding:2px 8px;border-radius:4px;font-weight:700;font-size:13px;font-family:monospace;cursor:default">{{${key}}}</span>&nbsp;`).run();
+    editor.chain().focus().insertContent(`<span data-type="placeholder" style="background:#eef2ff;color:#2563eb;padding:2px 8px;border-radius:4px;font-weight:700;font-size:13px;font-family:monospace;cursor:default">{{${key}}}</span>&nbsp;`).run();
   };
 
   return (
@@ -108,7 +108,7 @@ export function TemplateEditor({ content, onChange, readOnly }: TemplateEditorPr
         .te-toolbar-group{display:flex;gap:1px}
         .te-toolbar button{width:30px;height:30px;border:none;border-radius:6px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--on-surface-muted,#64748b);transition:all .1s}
         .te-toolbar button:hover{background:var(--surface-variant,#e2e8f0);color:var(--on-surface,#0d1c2e)}
-        .te-toolbar button.active{background:var(--primary-indigo,#1A237E);color:#fff}
+        .te-toolbar button.active{background:var(--primary-indigo,#1e40af);color:#fff}
         .te-toolbar button:disabled{opacity:.3;cursor:not-allowed}
         .te-sep{width:1px;height:20px;background:var(--surface-variant,#e2e8f0);margin:0 4px}
         .te-content{min-height:400px;padding:20px 24px;font-family:'Times New Roman',serif;font-size:14px;line-height:1.8}
@@ -138,7 +138,7 @@ export function useInsertPlaceholder(editorRef: React.RefObject<HTMLDivElement |
     const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
     const span = document.createElement('span');
     span.setAttribute('data-type', 'placeholder');
-    span.style.cssText = 'background:#eef2ff;color:#4f46e5;padding:2px 8px;border-radius:4px;font-weight:700;font-size:13px;font-family:monospace;cursor:default';
+    span.style.cssText = 'background:#eef2ff;color:#2563eb;padding:2px 8px;border-radius:4px;font-weight:700;font-size:13px;font-family:monospace;cursor:default';
     span.textContent = `{{${key}}}`;
 
     if (range && el.contains(range.commonAncestorContainer)) {

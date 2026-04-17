@@ -538,6 +538,31 @@ model TemplateVariable {
   createdAt   DateTime @default(now())
 }
 
+// Job Queue tracking
+model JobRecord {
+  id          Int      @id @default(autoincrement())
+  jobId       String   @unique   // BullMQ job ID
+  queueName   String              // Queue name: "ocr-processing", "ai-summarize"...
+  status      String              // "pending", "processing", "completed", "failed"
+  progress    Int      @default(0)
+  input       Json?               // Dữ liệu input
+  result      Json?               // Kết quả
+  error       String?             // Error message nếu fail
+
+  userId      Int?
+  workId      Int?
+  fileId      Int?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
 // Tài liệu đã render (lưu lại để tra cứu)
 model RenderedDocument {
   id          Int      @id @default(autoincrement())
