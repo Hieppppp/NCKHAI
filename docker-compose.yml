@@ -23,6 +23,26 @@ services:
           memory: 256M
     shm_size: 64mb
 
+  # ─── Redis (Job Queue - BullMQ) ────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: nckhai-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
   # ─── MinIO (S3 file storage) ───────────────────────────
   minio:
     image: minio/minio:latest
@@ -94,6 +114,8 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN}
       NODE_OPTIONS: "--max-old-space-size=384"
       AI_SERVICE_URL: http://ai-service:8000
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
       MINIO_ENDPOINT: minio
       MINIO_PORT: "9000"
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
@@ -106,6 +128,8 @@ services:
       - backend_prisma:/usr/src/app/node_modules/.prisma
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       ai-service:
         condition: service_started
@@ -139,6 +163,7 @@ services:
 volumes:
   postgres_data:          # DB data → không mất khi restart
   minio_data:             # File uploads → không mất khi restart
+  redis_data:             # Job queue persistence
   backend_node_modules:
   backend_prisma:
   frontend_node_modules:

@@ -134,6 +134,37 @@ async def upload_and_process(
     }
 
 
+# ─── Reprocess existing MinIO file (for job queue worker) ─
+
+@app.post("/reprocess")
+def reprocess_file(object_name: str):
+    """Reprocess file đã có sẵn trong MinIO - cho job queue worker gọi."""
+    try:
+        file_bytes = minio_client.download_file(object_name)
+    except Exception as e:
+        raise HTTPException(404, f"File không tồn tại: {e}")
+
+    ocr_result = ocr_service.process_file(file_bytes, object_name)
+    text = ocr_result.get("text", "")
+    metadata = nlp_utils.extract_metadata(text) if text else {
+        "title": None, "authors": None, "abstract": None, "keywords": []
+    }
+
+    return {
+        "file": {"objectName": object_name},
+        "ocr": {
+            "text": text[:5000],
+            "fullTextLength": len(text),
+            "confidence": ocr_result.get("confidence", 0),
+            "engine": ocr_result.get("engine", "unknown"),
+        },
+        "annotations": ocr_result.get("annotations", [])[:500],
+        "lineAnnotations": ocr_result.get("lineAnnotations", [])[:200],
+        "pages": ocr_result.get("pages", []),
+        "extraction": metadata,
+    }
+
+
 # ─── Similarity / Plagiarism ─────────────────────────────
 
 class SimilarityRequest(BaseModel):

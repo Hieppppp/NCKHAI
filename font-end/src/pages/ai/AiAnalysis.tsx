@@ -114,12 +114,47 @@ export default function AiAnalysis() {
   const buildJsonOutput = () => {
     if (!extraction) return '';
     const ext = extraction.extraction || {};
+    const pages = ext.pages || [];
+    const allLines = ext.lineAnnotations || [];
+    const allWords = ext.annotations || [];
+
+    // Group annotations by page
+    const byPage = pages.map((p: any, idx: number) => {
+      const pageNum = p.page || idx + 1;
+      const pageLines = allLines.filter((a: any) => a.page === pageNum);
+      const pageWords = allWords.filter((a: any) => a.page === pageNum);
+      return {
+        page: pageNum,
+        size: { width: p.width || 595, height: p.height || 842 },
+        stats: {
+          lines: pageLines.length,
+          words: pageWords.length,
+          characters: pageLines.reduce((s: number, l: any) => s + (l.text?.length || 0), 0),
+        },
+        lines: pageLines.slice(0, 30).map((l: any) => ({
+          text: l.text,
+          confidence: l.confidence,
+          bbox: l.bbox,
+        })),
+      };
+    });
+
     return JSON.stringify({
-      metadata: { title: ext.title, authors: ext.authors, abstract: ext.abstract, keywords: ext.keywords || [] },
-      ocr: { engine: ext.engine, confidence: ext.confidence, totalPages: ext.pages?.length || 0 },
-      text: ext.text || '',
-      annotations: (ext.annotations || []).slice(0, 100),
-      lineAnnotations: (ext.lineAnnotations || []).slice(0, 50),
+      metadata: {
+        title: ext.title,
+        authors: ext.authors,
+        abstract: ext.abstract,
+        keywords: ext.keywords || [],
+      },
+      ocr: {
+        engine: ext.engine,
+        confidence: ext.confidence,
+        totalPages: pages.length,
+        totalLines: allLines.length,
+        totalWords: allWords.length,
+      },
+      pages: byPage,
+      fullText: (ext.text || '').substring(0, 3000) + (ext.text?.length > 3000 ? '... (truncated)' : ''),
     }, null, 2);
   };
 
@@ -362,12 +397,14 @@ export default function AiAnalysis() {
 
                 {/* JSON view */}
                 {viewMode === 'json' && (
-                  <div>
+                  <div className="json-view">
                     <div className="text-toolbar">
-                      <span className="text-info">Structured JSON</span>
+                      <span className="text-info">
+                        Structured JSON — {((ext.annotations || []).length + (ext.lineAnnotations || []).length).toLocaleString()} annotations across {ext.pages?.length || 1} pages
+                      </span>
                       <button className="copy-btn" onClick={() => handleCopy(buildJsonOutput())}>{copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />} {copied ? 'Đã copy' : 'Copy'}</button>
                     </div>
-                    <pre className="code-block dark">{buildJsonOutput()}</pre>
+                    <pre className="code-block dark json-pre">{buildJsonOutput()}</pre>
                   </div>
                 )}
 
@@ -590,8 +627,12 @@ const aiStyles = `
   .text-info { font-size: 0.7rem; color: var(--on-surface-muted); font-weight: 600; }
   .copy-btn { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--surface-variant); background: var(--surface-lowest); cursor: pointer; font-size: 0.7rem; font-weight: 600; color: var(--on-surface-muted); }
   .text-content { background: var(--surface-low); padding: 14px; border-radius: 10px; font-size: 0.8rem; line-height: 1.7; max-height: 500px; overflow: auto; white-space: pre-wrap; font-family: inherit; }
-  .code-block { padding: 14px; border-radius: 10px; font-size: 0.72rem; line-height: 1.6; max-height: 500px; overflow: auto; font-family: "JetBrains Mono", "Fira Code", monospace; }
-  .code-block.dark { background: #1e40af; color: #e2e8f0; }
+  .code-block { padding: 14px; border-radius: 10px; font-size: 0.72rem; line-height: 1.6; max-height: 600px; overflow: auto; font-family: "JetBrains Mono", "Fira Code", monospace; white-space: pre-wrap; word-break: break-word; }
+  .code-block.dark { background: #0f172a; color: #e2e8f0; border: 1px solid #1e293b; }
+  .json-view { width: 100%; }
+  .json-pre { max-width: 100%; }
+  .json-pre::-webkit-scrollbar { height: 8px; }
+  .json-pre::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
   .code-block.light { background: #fffbeb; color: #1e40af; white-space: pre-wrap; }
 
   /* BBox */
