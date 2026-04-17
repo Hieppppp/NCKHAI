@@ -29,4 +29,31 @@ export const workService = {
     const { data } = await api.get(`/works/${id}/workflow`);
     return data;
   },
+
+  // ─── File Upload/Download (MinIO) ───
+  async uploadFile(workId: number, file: File, category?: string) {
+    const form = new FormData();
+    form.append('file', file);
+    if (category) form.append('category', category);
+    const { data } = await api.post(`/works/${workId}/files`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    });
+    return data;
+  },
+
+  async getFiles(workId: number) {
+    const { data } = await api.get(`/works/${workId}/files`);
+    return data;
+  },
+
+  async downloadFile(fileId: number) {
+    const { data } = await api.get(`/works/files/${fileId}/download`);
+    return data as { url: string; originalName: string; mimeType: string };
+  },
+
+  async deleteFile(fileId: number) {
+    const { data } = await api.delete(`/works/files/${fileId}`);
+    return data;
+  },
 };

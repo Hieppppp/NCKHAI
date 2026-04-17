@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Send, Sparkles, ShieldCheck, PenTool, Plus, Users, Calendar, MapPin,
-  Loader2, CheckCircle, Clock, Star, ArrowLeft, X,
+  Loader2, CheckCircle, Clock, Star, ArrowLeft, X, FileText, Eye, Download,
 } from 'lucide-react';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { Modal } from '../components/common/Modal';
@@ -13,9 +13,19 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/common/Toast';
 import { Role } from '../types';
 
+interface WorkFile {
+  id: number; originalName: string; mimeType: string; size: number;
+  category?: string; createdAt: string; uploader?: { id: number; name: string };
+}
+
 interface Committee {
   id: number; name: string; description?: string; meetingDate?: string; location?: string; finalScore?: number; conclusion?: string;
-  work: { id: number; title: string; status?: string; authors?: string; abstract?: string; level?: string };
+  work: {
+    id: number; title: string; status?: string; authors?: string; abstract?: string; level?: string;
+    type?: string; keywords?: string[]; budget?: number; journalName?: string;
+    user?: { id: number; name: string; email: string; department?: string };
+    files?: WorkFile[];
+  };
   members: { id: number; role: string; user: { id: number; name: string; email: string; specialization?: string } }[];
   reviews: { id: number; innovationScore: number; feasibilityScore: number; impactScore: number; totalScore: number; comment?: string; recommendation?: string; reviewer: { id: number; name: string; email: string }; createdAt: string }[];
   _count?: { reviews: number };
@@ -111,6 +121,42 @@ export const CommitteeEvaluation = () => {
                 </div>
               </div>
             </div>
+
+            {/* Tài liệu đề tài - CHO HỘI ĐỒNG XEM VÀ TẢI */}
+            {selected.work.files && selected.work.files.length > 0 && (
+              <div className="surface-card ce-files-card">
+                <h3 className="ce-section-head"><FileText size={16} /> Tài liệu đề tài ({selected.work.files.length})</h3>
+                <p className="ce-files-hint">Xem và tải tài liệu đề tài để đánh giá chính xác</p>
+                <div className="ce-files-list">
+                  {selected.work.files.map((f: WorkFile) => (
+                    <div key={f.id} className="ce-file-item">
+                      <div className="ce-file-icon"><FileText size={18} /></div>
+                      <div className="ce-file-info">
+                        <span className="ce-file-name">{f.originalName}</span>
+                        <div className="ce-file-meta">
+                          <span>{f.category || 'Tài liệu'}</span>
+                          <span>•</span>
+                          <span>{(f.size / 1024).toFixed(0)} KB</span>
+                          <span>•</span>
+                          <span>{f.uploader?.name}</span>
+                        </div>
+                      </div>
+                      <div className="ce-file-actions">
+                        <button className="ce-file-btn" title="Xem trước" onClick={async () => {
+                          try { const { url } = await workService.downloadFile(f.id); window.open(url, '_blank'); } catch { showError('Không thể mở file'); }
+                        }}><Eye size={14} /></button>
+                        <button className="ce-file-btn primary" title="Tải về" onClick={async () => {
+                          try {
+                            const { url } = await workService.downloadFile(f.id);
+                            const a = document.createElement('a'); a.href = url; a.download = f.originalName; a.target = '_blank'; a.click();
+                          } catch { showError('Không thể tải file'); }
+                        }}><Download size={14} /> Tải</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Score sheet or reviews */}
             {isMember && !userReviewed ? (
@@ -217,7 +263,7 @@ export const CommitteeEvaluation = () => {
         <div className="surface-card ce-stat"><Users size={22} color="#4f46e5" /><div><span className="ce-stat-val">{committees.length}</span><span className="ce-stat-label">Tổng hội đồng</span></div></div>
         <div className="surface-card ce-stat"><CheckCircle size={22} color="#10b981" /><div><span className="ce-stat-val">{completed}</span><span className="ce-stat-label">Đã hoàn thành</span></div></div>
         <div className="surface-card ce-stat"><Clock size={22} color="#f59e0b" /><div><span className="ce-stat-val">{committees.length - completed}</span><span className="ce-stat-label">Đang chờ</span></div></div>
-        <div className="surface-card ce-stat"><Star size={22} color="#7c3aed" /><div><span className="ce-stat-val">{avgScore}</span><span className="ce-stat-label">Điểm TB</span></div></div>
+        <div className="surface-card ce-stat"><Star size={22} color="#475569" /><div><span className="ce-stat-val">{avgScore}</span><span className="ce-stat-label">Điểm TB</span></div></div>
       </div>
 
       {loading ? <div className="ce-loading"><Loader2 size={32} className="ce-spin" color="var(--primary-indigo)" /></div> : committees.length === 0 ? (
@@ -301,10 +347,10 @@ const ceStyles = `
   .ce-muted{color:var(--on-surface-muted);font-size:.85rem}
   .ce-success{display:flex;align-items:center;gap:8px;background:#d1fae5;color:#065f46;padding:12px 16px;border-radius:12px;font-weight:600;font-size:.875rem}
 
-  .ce-hero{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
+  .ce-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 40%,#334155 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
   .ce-hero-left h1{font-size:1.75rem;font-weight:800;color:#fff;margin-bottom:.375rem}
   .ce-hero-left p{font-size:.9rem;opacity:.85;margin-bottom:1.25rem}
-  .ce-hero-btn{background:#fff;color:#1e1b4b;border:none;padding:10px 20px;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .ce-hero-btn{background:#fff;color:#0f172a;border:none;padding:10px 20px;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:6px}
   .ce-hero-ring{position:relative;width:120px;height:120px;flex-shrink:0}
   .ce-hero-ring svg{width:100%;height:100%}
   .ce-ring-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
@@ -341,7 +387,7 @@ const ceStyles = `
   .ce-side{display:flex;flex-direction:column;gap:1rem}
 
   .ce-project{display:flex;gap:1.5rem;padding:1.5rem!important}
-  .ce-proj-visual{width:160px;height:180px;background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:14px;position:relative;overflow:hidden;flex-shrink:0}
+  .ce-proj-visual{width:160px;height:180px;background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:14px;position:relative;overflow:hidden;flex-shrink:0}
   .ce-proj-overlay{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);padding:.75rem;color:#fff}
   .ce-proj-overlay small{font-size:.55rem;opacity:.7;display:block}
   .ce-proj-overlay strong{font-size:.8rem}
@@ -351,6 +397,22 @@ const ceStyles = `
   .ce-proj-meta{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;padding-top:.75rem;border-top:1px solid var(--surface-variant)}
   .ce-proj-meta small{font-size:.6rem;font-weight:700;color:var(--on-surface-muted);text-transform:uppercase;display:block;margin-bottom:2px}
   .ce-proj-meta strong{font-size:.8rem}
+
+  /* Files section for committee */
+  .ce-files-card{padding:1.5rem!important}
+  .ce-section-head{font-size:.95rem;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:.25rem}
+  .ce-files-hint{font-size:.75rem;color:var(--on-surface-muted);margin-bottom:.75rem}
+  .ce-files-list{display:flex;flex-direction:column;gap:.5rem}
+  .ce-file-item{display:flex;align-items:center;gap:12px;padding:.75rem;background:var(--surface-low);border-radius:10px}
+  .ce-file-icon{width:36px;height:36px;border-radius:8px;background:var(--surface-lowest);display:flex;align-items:center;justify-content:center;color:var(--primary-accent);flex-shrink:0}
+  .ce-file-info{flex:1;min-width:0}
+  .ce-file-name{font-weight:600;font-size:.85rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ce-file-meta{display:flex;gap:6px;font-size:.7rem;color:var(--on-surface-muted);margin-top:2px}
+  .ce-file-actions{display:flex;gap:4px}
+  .ce-file-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border:1.5px solid var(--surface-variant);background:var(--surface-lowest);color:var(--on-surface-muted);border-radius:6px;cursor:pointer;font-size:.7rem;font-weight:700;transition:all .15s}
+  .ce-file-btn:hover{border-color:var(--primary-indigo);color:var(--primary-indigo)}
+  .ce-file-btn.primary{background:var(--signature-gradient);color:#fff;border:none}
+  .ce-file-btn.primary:hover{transform:translateY(-1px)}
 
   .ce-score-card{padding:1.5rem!important}
   .ce-score-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
@@ -393,7 +455,7 @@ const ceStyles = `
   .ce-rec-pill{display:inline-block;margin-top:.375rem;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:4px}
   .ce-rec-pill.accept{background:#d1fae5;color:#059669}.ce-rec-pill.reject{background:#fee2e2;color:#dc2626}.ce-rec-pill.revise{background:#fef3c7;color:#d97706}
 
-  .ce-ai-card{background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;border-radius:16px;padding:1.25rem}
+  .ce-ai-card{background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border-radius:16px;padding:1.25rem}
   .ce-ai-head{display:flex;align-items:center;gap:6px;font-weight:800;font-size:.75rem;margin-bottom:.75rem}
   .ce-ai-hint{font-size:.8rem;opacity:.7}
   .ce-expert-list{display:flex;flex-direction:column;gap:.5rem}

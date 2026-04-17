@@ -224,4 +224,101 @@ export class ScientificWorksService {
     if (steps.length === 0) throw new NotFoundException(`Không tìm thấy quy trình cho công trình #${id}`);
     return steps;
   }
+
+  // ─── File Management (MinIO) ─────────────────────────────
+  // Lưu file lên MinIO qua AI service, DB chỉ lưu path
+
+  async uploadFile(
+    workId: number,
+    buffer: Buffer,
+    originalName: string,
+    mimeType: string,
+    size: number,
+    userId: number,
+    category?: string,
+  ) {
+    const work = await this.prisma.scientificWork.findUnique({ where: { id: workId } });
+    if (!work) throw new NotFoundException(`Công trình #${workId} không tồn tại`);
+
+    // Upload to MinIO qua AI service
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:8000';
+    const boundary = '----WorkFile' + Date.now();
+    const parts: Buffer[] = [];
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${originalName}"\r\nContent-Type: ${mimeType}\r\n\r\n`));
+    parts.push(buffer);
+    parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+    const body = Buffer.concat(parts);
+
+    const response = await fetch(`${AI_SERVICE_URL}/process`, {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body,
+    });
+
+    if (!response.ok) throw new Error('Upload lên MinIO thất bại');
+    const result: any = await response.json();
+
+    // Chỉ lưu path + metadata vào DB
+    const record = await this.prisma.fileUpload.create({
+      data: {
+        filename: result.file.objectName,
+        originalName,
+        mimeType,
+        size,
+        path: `minio://${result.file.objectName}`,
+        category: (category as any) || 'MANUSCRIPT',
+        uploaderId: userId,
+        workId,
+        extractedText: result.ocr?.text?.substring(0, 50000),
+        extractedTitle: result.extraction?.title,
+        extractedAuthors: result.extraction?.authors,
+        extractedAbstract: result.extraction?.abstract,
+        extractedKeywords: result.extraction?.keywords || [],
+        ocrConfidence: result.ocr?.confidence,
+      },
+      include: { uploader: { select: { id: true, name: true } } },
+    });
+
+    return record;
+  }
+
+  async getFiles(workId: number) {
+    return this.prisma.fileUpload.findMany({
+      where: { workId },
+      include: { uploader: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getDownloadUrl(fileId: number) {
+    const file = await this.prisma.fileUpload.findUnique({ where: { id: fileId } });
+    if (!file) throw new NotFoundException(`File #${fileId} không tồn tại`);
+
+    const objectName = file.path.replace('minio://', '');
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:8000';
+    const response = await fetch(`${AI_SERVICE_URL}/files/${objectName}/url`);
+    if (!response.ok) throw new NotFoundException('Không thể lấy URL file');
+    const data: any = await response.json();
+    return { url: data.url, originalName: file.originalName, mimeType: file.mimeType };
+  }
+
+  async deleteFile(fileId: number, userId: number, role: Role) {
+    const file = await this.prisma.fileUpload.findUnique({ where: { id: fileId } });
+    if (!file) throw new NotFoundException(`File #${fileId} không tồn tại`);
+
+    // Chỉ uploader hoặc admin được xóa
+    if (file.uploaderId !== userId && role !== Role.ADMIN) {
+      throw new ForbiddenException('Bạn không có quyền xóa file này');
+    }
+
+    // Xóa khỏi MinIO
+    try {
+      const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:8000';
+      const objectName = file.path.replace('minio://', '');
+      await fetch(`${AI_SERVICE_URL}/files/${objectName}`, { method: 'DELETE' });
+    } catch { /* ignore */ }
+
+    await this.prisma.fileUpload.delete({ where: { id: fileId } });
+    return { message: 'Đã xóa file' };
+  }
 }

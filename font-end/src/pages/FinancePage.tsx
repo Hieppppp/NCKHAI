@@ -89,7 +89,7 @@ export default function FinancePage() {
   const disbPct = totalBudget > 0 ? ((totalDisbursed / totalBudget) * 100).toFixed(0) : '0';
   const depts = stats?.byDepartment?.filter(d => d.department) || [];
   const deptTotal = depts.reduce((s, d) => s + (d._sum.totalAmount || 0), 0);
-  const COLORS = ['#4f46e5', '#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706'];
+  const COLORS = ['#4f46e5', '#475569', '#2563eb', '#0891b2', '#059669', '#d97706'];
 
   return (
     <div className="fin">
@@ -269,13 +269,13 @@ const finStyles = `
   .fin{display:flex;flex-direction:column;gap:1.5rem;padding-bottom:3rem}
   .fin-loading{display:flex;justify-content:center;padding:80px}
 
-  .fin-hero{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
+  .fin-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 40%,#334155 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
   .fin-hero-left h1{font-size:1.75rem;font-weight:800;color:#fff;margin-bottom:.375rem}
   .fin-hero-left p{font-size:.9rem;opacity:.85;margin-bottom:1.25rem}
-  .fin-hero-left strong{color:#a5b4fc}
+  .fin-hero-left strong{color:#cbd5e1}
   .fin-hero-actions{display:flex;gap:8px;flex-wrap:wrap}
   .fin-btn-hero{display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-weight:700;font-size:.8rem;cursor:pointer;border:none}
-  .fin-btn-hero.primary{background:#fff;color:#1e1b4b}
+  .fin-btn-hero.primary{background:#fff;color:#0f172a}
   .fin-btn-hero.secondary{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.2)}
   .fin-hero-ring{position:relative;width:120px;height:120px;flex-shrink:0}
   .fin-hero-ring svg{width:100%;height:100%}
@@ -319,7 +319,7 @@ const finStyles = `
   .fin-act{width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .fin-act.approve{background:#d1fae5;color:#059669}
   .fin-act.reject{background:#fee2e2;color:#dc2626}
-  .fin-act.award{background:#ede9fe;color:#7c3aed}
+  .fin-act.award{background:#ede9fe;color:#475569}
   .fin-act-group{display:flex;gap:3px}
 
   .fin-table-card{padding:0!important;overflow:hidden}

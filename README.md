@@ -62,7 +62,52 @@ docker compose logs -f
 docker compose ps
 ```
 
-### 4. Truy cập
+### 4. Seed dữ liệu demo (lần đầu chạy)
+
+```bash
+# Push schema Prisma lên DB
+docker compose exec back-end npx prisma db push --accept-data-loss
+
+# Generate Prisma Client
+docker compose exec back-end npx prisma generate
+
+# Seed dữ liệu: users, works, journals, templates, configs, variables
+docker compose exec back-end npx tsx prisma/seed.ts
+
+# Expected output:
+# Seed completed! { admin: 1, reviewer1: 2, reviewer2: 3, lecturer: 4, student: 5,
+#   journals: 15, configs: 14, templateVars: 25, templates: 3 }
+```
+
+### 5. Deploy PostgreSQL Functions (tối ưu hiệu năng)
+
+```bash
+# Copy SQL functions vào container DB
+docker cp back-end/prisma/functions/nckhai_functions.sql nckhai-db:/tmp/
+
+# Chạy file SQL
+docker compose exec db psql -U nckhai -d nckhai_db -f /tmp/nckhai_functions.sql
+```
+
+Tạo 10 PostgreSQL functions tối ưu: dashboard stats, finance stats, library stats,
+research hours calculation, template data loader, plagiarism check với pg_trgm.
+
+### 6. Restart sau khi có code mới
+
+```bash
+# Chỉ restart các service thay đổi
+docker compose restart back-end         # khi sửa backend
+docker compose restart front-end        # khi sửa frontend CSS/config
+# Frontend thường tự HMR khi sửa React, không cần restart
+
+# Rebuild nếu thêm npm package mới
+docker compose up -d --build front-end
+
+# Rebuild nếu đổi Dockerfile
+docker compose up -d --build
+```
+
+### 7. Truy cập
 
 | Service | URL |
 |---------|-----|
@@ -82,6 +127,51 @@ docker compose ps
 | Phản biện 2 | `reviewer2@nckhai.vn` | `reviewer123` |
 | Giảng viên | `lecturer@nckhai.vn` | `lecturer123` |
 | Sinh viên | `student@nckhai.vn` | `user123` |
+
+## Lệnh hữu ích khi dev
+
+### Database
+```bash
+# Kết nối PostgreSQL CLI
+docker compose exec db psql -U nckhai -d nckhai_db
+
+# Reset database (xóa toàn bộ)
+docker compose down -v            # ⚠️ Mất hết dữ liệu
+docker compose up -d
+docker compose exec back-end npx prisma db push --accept-data-loss
+docker compose exec back-end npx tsx prisma/seed.ts
+
+# Xem các bảng
+docker compose exec db psql -U nckhai -d nckhai_db -c "\dt"
+```
+
+### Logs & Debug
+```bash
+# Xem log real-time
+docker compose logs -f back-end
+docker compose logs -f front-end
+docker compose logs -f ai-service
+
+# Xem 50 dòng cuối
+docker compose logs --tail=50 back-end
+
+# Chạy command trong container
+docker compose exec back-end npm run build
+docker compose exec back-end npm run lint
+docker compose exec front-end npm install <package>
+```
+
+### Backup & Restore
+```bash
+# Backup DB
+docker compose exec db pg_dump -U nckhai nckhai_db > backup.sql
+
+# Restore DB
+cat backup.sql | docker compose exec -T db psql -U nckhai -d nckhai_db
+
+# Backup MinIO files
+docker cp nckhai-minio:/data ./minio-backup
+```
 
 ## Tính năng chính
 

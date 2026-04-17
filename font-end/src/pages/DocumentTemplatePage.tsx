@@ -29,7 +29,7 @@ const CATS: Record<string, { label: string; color: string }> = {
   REPORT: { label: 'Báo cáo', color: '#059669' },
   CONTRACT: { label: 'Hợp đồng', color: '#d97706' },
   CERTIFICATE: { label: 'Giấy khen', color: '#dc2626' },
-  MINUTES: { label: 'Biên bản', color: '#7c3aed' },
+  MINUTES: { label: 'Biên bản', color: '#475569' },
   EVALUATION: { label: 'Phiếu đánh giá', color: '#0891b2' },
   OTHER: { label: 'Khác', color: '#64748b' },
 };
@@ -472,14 +472,14 @@ const styles = `
   .dt-empty p{font-size:.85rem}
 
   /* Hero */
-  .dt-hero{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:2rem}
+  .dt-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 40%,#334155 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:2rem}
   .dt-hero-text h1{font-size:1.75rem;font-weight:800;color:#fff;margin-bottom:.25rem}
   .dt-hero-text p{font-size:.9rem;opacity:.85;max-width:420px}
   .dt-hero-actions{display:flex;gap:8px;flex-shrink:0}
   .dt-hero-btn{border:none;padding:11px 22px;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;transition:transform .15s}
   .dt-hero-btn:hover{transform:translateY(-1px)}
   .dt-hero-btn:disabled{opacity:.5}
-  .dt-hero-btn.main{background:#fff;color:#1e1b4b}
+  .dt-hero-btn.main{background:#fff;color:#0f172a}
   .dt-hero-btn.alt{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.25)}
 
   /* Tabs */

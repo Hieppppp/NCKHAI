@@ -1,31 +1,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* Surface Layers */
-  --surface: #f8f9ff;
+  /* Surface Layers - Trắng/Gray chuyên nghiệp */
+  --surface: #f8fafc;
   --surface-lowest: #ffffff;
-  --surface-low: #f1f4ff;
-  --surface-high: #dce9ff;
+  --surface-low: #f1f5f9;
+  --surface-high: #e2e8f0;
   --surface-variant: #e2e8f0;
-  
-  /* Brand Colors */
-  --primary-indigo: #1A237E;
-  --primary-violet: #7C4DFF;
-  --signature-gradient: linear-gradient(135deg, #1A237E 0%, #7C4DFF 100%);
-  
+
+  /* Brand Colors - Slate/Gray chuyên nghiệp */
+  --primary-indigo: #0f172a;      /* slate-900 - màu chính */
+  --primary-violet: #334155;      /* slate-700 - màu phụ */
+  --primary-accent: #475569;      /* slate-600 - accent */
+  --signature-gradient: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  --hero-gradient: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+
   /* Text Colors */
-  --on-surface: #0d1c2e;
+  --on-surface: #0f172a;
   --on-surface-muted: #64748b;
   --on-surface-variant: #94a3b8;
-  
+
   /* Status Colors */
   --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
-  
-  /* Elevation Checks */
-  --tinted-shadow: 0 32px 64px -12px rgba(26, 35, 126, 0.06);
-  --glass-bg: rgba(255, 255, 255, 0.7);
+  --info: #3b82f6;
+
+  /* Elevation */
+  --tinted-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08);
+  --glass-bg: rgba(255, 255, 255, 0.8);
   --glass-blur: blur(20px);
 }
 
@@ -43,7 +46,6 @@ body {
   line-height: 1.5;
 }
 
-/* Typography Hierarchy */
 h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
 h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; }
 h3 { font-size: 1.125rem; font-weight: 600; }
@@ -56,22 +58,21 @@ h3 { font-size: 1.125rem; font-weight: 600; }
   color: var(--on-surface-muted);
 }
 
-/* Glassmorphism Classes */
 .glass-slab {
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
 }
 
-/* Button Styles */
+/* Primary button - chuyên nghiệp gray/slate */
 .btn-signature {
   background: var(--signature-gradient);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -79,19 +80,17 @@ h3 { font-size: 1.125rem; font-weight: 600; }
 }
 
 .btn-signature:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: var(--tinted-shadow);
 }
 
-/* Card Styles - No 1px Border Rule */
 .surface-card {
   background-color: var(--surface-lowest);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); /* Very subtle shadow for depth */
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
-/* Layout Utilities */
 .app-layout {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -105,7 +104,6 @@ h3 { font-size: 1.125rem; font-weight: 600; }
   gap: 2.5rem;
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
