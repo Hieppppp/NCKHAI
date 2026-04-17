@@ -63,7 +63,12 @@ export class LibraryService {
         where,
         include: {
           user: { select: { id: true, name: true, email: true } },
-          publication: { select: { id: true, journalName: true, conferenceName: true, doi: true, issn: true, publishedDate: true } },
+          publication: {
+            select: {
+              id: true, journalName: true, conferenceName: true, doi: true, issn: true, publishedDate: true,
+              file: { select: { id: true, originalName: true, path: true, mimeType: true, size: true } },
+            },
+          },
         },
         skip,
         take: limit,
@@ -80,7 +85,7 @@ export class LibraryService {
       where: { id },
       include: {
         user: { select: { id: true, name: true, email: true } },
-        publication: true,
+        publication: { include: { file: true } },
         work: { select: { id: true, title: true, status: true } },
       },
     });
@@ -145,5 +150,110 @@ export class LibraryService {
   async remove(id: number) {
     await this.prisma.libraryDocument.delete({ where: { id } });
     return { message: `Đã xóa tài liệu #${id}` };
+  }
+
+  /**
+   * Upload file cho LibraryDocument:
+   * - Upload lên MinIO qua AI service
+   * - Tạo FileUpload record
+   * - Tạo/update Publication liên kết với LibraryDocument
+   */
+  async uploadFile(
+    libId: number,
+    buffer: Buffer,
+    originalName: string,
+    mimeType: string,
+    size: number,
+    userId: number,
+  ) {
+    const lib = await this.prisma.libraryDocument.findUnique({ where: { id: libId }, include: { publication: true } });
+    if (!lib) throw new NotFoundException(`Tài liệu #${libId} không tồn tại`);
+
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:8000';
+    const boundary = '----LibFile' + Date.now();
+    const parts: Buffer[] = [];
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${originalName}"\r\nContent-Type: ${mimeType}\r\n\r\n`));
+    parts.push(buffer);
+    parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+    const body = Buffer.concat(parts);
+
+    const response = await fetch(`${AI_SERVICE_URL}/process`, {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body,
+    });
+    if (!response.ok) throw new Error('Upload lên MinIO thất bại');
+    const result: any = await response.json();
+
+    // Create FileUpload record
+    const fileRecord = await this.prisma.fileUpload.create({
+      data: {
+        filename: result.file.objectName,
+        originalName,
+        mimeType,
+        size,
+        path: `minio://${result.file.objectName}`,
+        category: 'MANUSCRIPT',
+        uploaderId: userId,
+      },
+    });
+
+    // Link với Publication (tạo nếu chưa có)
+    let pubId = lib.publicationId;
+    if (!pubId) {
+      const pub = await this.prisma.publication.create({
+        data: {
+          title: lib.title,
+          authors: lib.authors,
+          abstract: lib.abstract,
+          keywords: lib.keywords,
+          status: 'CONFIRMED',
+          userId,
+          fileId: fileRecord.id,
+        },
+      });
+      pubId = pub.id;
+      await this.prisma.libraryDocument.update({
+        where: { id: libId },
+        data: { publicationId: pubId },
+      });
+    } else {
+      await this.prisma.publication.update({
+        where: { id: pubId },
+        data: { fileId: fileRecord.id },
+      });
+    }
+
+    return {
+      file: fileRecord,
+      message: 'Upload thành công',
+    };
+  }
+
+  /**
+   * Lấy presigned URL download từ MinIO
+   */
+  async getDownloadUrl(libId: number) {
+    const lib = await this.prisma.libraryDocument.findUnique({
+      where: { id: libId },
+      include: { publication: { include: { file: true } } },
+    });
+    if (!lib) throw new NotFoundException(`Tài liệu #${libId} không tồn tại`);
+    const file = lib.publication?.file;
+    if (!file) throw new NotFoundException('Tài liệu này chưa có file đính kèm');
+
+    const objectName = file.path.replace('minio://', '');
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:8000';
+    const response = await fetch(`${AI_SERVICE_URL}/files/${objectName}/url`);
+    if (!response.ok) throw new NotFoundException('Không thể lấy URL file');
+    const data: any = await response.json();
+
+    // Tăng download count
+    await this.prisma.libraryDocument.update({
+      where: { id: libId },
+      data: { downloadCount: { increment: 1 } },
+    });
+
+    return { url: data.url, originalName: file.originalName, mimeType: file.mimeType };
   }
 }

@@ -52,4 +52,19 @@ export const libraryService = {
     const res = await api.post('/ai/chat', { message });
     return { reply: res.data.reply || res.data.answer || 'Không có phản hồi.' };
   },
+
+  async uploadFile(id: number, file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await api.post(`/library/${id}/upload`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    });
+    return data;
+  },
+
+  async downloadFile(id: number) {
+    const { data } = await api.get(`/library/${id}/download`);
+    return data as { url: string; originalName: string; mimeType: string };
+  },
 };

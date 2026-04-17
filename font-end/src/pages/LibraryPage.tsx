@@ -81,12 +81,27 @@ export default function LibraryPage() {
   };
 
   const handleDownload = async (doc: LibDoc) => {
-    const filePath = doc.publication?.file?.path;
-    if (!filePath) { showWarning('Tài liệu này chưa có file đính kèm'); return; }
     try {
-      const url = await aiService.getFileUrl(filePath.replace('minio://', ''));
-      window.open(url, '_blank');
-    } catch { showError('Không thể tải file'); }
+      const { url, originalName } = await libraryService.downloadFile(doc.id);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = originalName || 'document';
+      a.target = '_blank';
+      a.click();
+    } catch (err: any) {
+      const msg = err.response?.data?.message;
+      if (msg?.includes('chưa có file')) showWarning(msg);
+      else showError('Không thể tải file');
+    }
+  };
+
+  const handleUpload = async (doc: LibDoc, file: File) => {
+    try {
+      await libraryService.uploadFile(doc.id, file);
+      showSuccess(`Đã upload "${file.name}"`);
+      if (detail) { const updated = await libraryService.findOne(doc.id); setDetail(updated); }
+      fetchDocs(meta.page);
+    } catch { showError('Upload thất bại'); }
   };
 
   const handleCopyBib = (doc: LibDoc) => {
@@ -199,6 +214,16 @@ export default function LibraryPage() {
               <button className="lib-action-btn download" onClick={() => handleDownload(detail)}>
                 <Download size={14} /> Tải tài liệu gốc
               </button>
+              {isLecturerOrAdmin && (
+                <label className="lib-action-btn upload" style={{ cursor: 'pointer' }}>
+                  <input type="file" style={{ display: 'none' }} onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) handleUpload(detail, f);
+                    e.target.value = '';
+                  }} accept=".pdf,.docx,.doc,.png,.jpg,.jpeg" />
+                  <Download size={14} style={{ transform: 'rotate(180deg)' }} /> Upload / Thay file
+                </label>
+              )}
             </div>
           </aside>
         </div>
@@ -479,6 +504,8 @@ const libStyles = `
   .lib-action-btn{width:100%;padding:10px;border-radius:8px;font-weight:700;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:.5rem;background:var(--surface-low);border:none;color:var(--on-surface);transition:all .15s}
   .lib-action-btn:hover{background:#eef2ff;color:var(--primary-indigo)}
   .lib-action-btn.download{background:var(--signature-gradient);color:#fff}
+  .lib-action-btn.upload{background:#dbeafe;color:var(--primary-indigo);border:1.5px solid #93c5fd}
+  .lib-action-btn.upload:hover{background:#bfdbfe}
 
   /* Chat */
   .lib-chat-fab{position:fixed;bottom:2rem;right:2rem;z-index:200;width:52px;height:52px;border-radius:50%;background:var(--primary-indigo);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(79,70,229,.4)}
