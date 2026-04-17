@@ -146,7 +146,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         }
         .t-btn-confirm {
           padding: .625rem 1.5rem; border-radius: 10px; border: none;
-          background: linear-gradient(135deg, #1A237E, #7C4DFF); color: #fff;
+          background: linear-gradient(135deg, #1A237E, #334155); color: #fff;
           font-weight: 700; font-size: .85rem; cursor: pointer;
         }
         .t-btn-confirm.danger { background: linear-gradient(135deg, #dc2626, #ef4444); }

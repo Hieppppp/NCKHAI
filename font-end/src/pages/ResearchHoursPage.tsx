@@ -135,7 +135,7 @@ export default function ResearchHoursPage() {
           <div className="rh-stats">
             <div className="surface-card rh-stat"><div className="rh-stat-icon" style={{ background: '#4f46e512', color: '#4f46e5' }}><Star size={20} /></div><div><span className="rh-stat-val">{hours.totalPoints.toFixed(1)}</span><span className="rh-stat-label">Tổng điểm</span></div></div>
             <div className="surface-card rh-stat"><div className="rh-stat-icon" style={{ background: '#10b98112', color: '#10b981' }}><CheckCircle size={20} /></div><div><span className="rh-stat-val">{hours.requiredPoints}</span><span className="rh-stat-label">Định mức</span></div></div>
-            <div className="surface-card rh-stat"><div className="rh-stat-icon" style={{ background: '#7c3aed12', color: '#7c3aed' }}><FileText size={20} /></div><div><span className="rh-stat-val">{hours.publicationPoints.toFixed(1)}</span><span className="rh-stat-label">Điểm công bố</span></div></div>
+            <div className="surface-card rh-stat"><div className="rh-stat-icon" style={{ background: '#47556912', color: '#475569' }}><FileText size={20} /></div><div><span className="rh-stat-val">{hours.publicationPoints.toFixed(1)}</span><span className="rh-stat-label">Điểm công bố</span></div></div>
             <div className="surface-card rh-stat"><div className="rh-stat-icon" style={{ background: '#d9770612', color: '#d97706' }}><BookOpen size={20} /></div><div><span className="rh-stat-val">{hours.projectPoints.toFixed(1)}</span><span className="rh-stat-label">Điểm đề tài</span></div></div>
           </div>
 
@@ -198,7 +198,7 @@ export default function ResearchHoursPage() {
             <div className="surface-card rh-stat"><Users size={20} color="#4f46e5" /><div><span className="rh-stat-val">{summary.total}</span><span className="rh-stat-label">Tổng giảng viên</span></div></div>
             <div className="surface-card rh-stat"><CheckCircle size={20} color="#10b981" /><div><span className="rh-stat-val">{summary.completed}</span><span className="rh-stat-label">Đạt định mức</span></div></div>
             <div className="surface-card rh-stat"><AlertTriangle size={20} color="#f59e0b" /><div><span className="rh-stat-val">{summary.total - summary.completed}</span><span className="rh-stat-label">Chưa đạt</span></div></div>
-            <div className="surface-card rh-stat"><TrendingUp size={20} color="#7c3aed" /><div><span className="rh-stat-val">{summary.avgPoints.toFixed(1)}</span><span className="rh-stat-label">Điểm TB</span></div></div>
+            <div className="surface-card rh-stat"><TrendingUp size={20} color="#475569" /><div><span className="rh-stat-val">{summary.avgPoints.toFixed(1)}</span><span className="rh-stat-label">Điểm TB</span></div></div>
           </div>
 
           {/* By Department */}
@@ -333,7 +333,7 @@ const rhStyles = `
   .rh{display:flex;flex-direction:column;gap:1.25rem;padding-bottom:3rem}
   .rh-loading{display:flex;justify-content:center;padding:4rem}
 
-  .rh-hero{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
+  .rh-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 40%,#334155 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
   .rh-hero-left h1{font-size:1.75rem;font-weight:800;color:#fff;margin-bottom:.375rem}
   .rh-hero-left p{font-size:.9rem;opacity:.85;max-width:500px;line-height:1.5;margin-bottom:1rem}
   .rh-year-select{display:flex;align-items:center;gap:8px}

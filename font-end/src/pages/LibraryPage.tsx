@@ -387,7 +387,7 @@ const libStyles = `
   .lib{display:flex;flex-direction:column;gap:1.25rem;padding-bottom:3rem}
   .lib-back{background:none;border:none;display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--on-surface-muted);font-weight:700;font-size:.85rem;padding:0}
 
-  .lib-hero{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 100%);border-radius:20px;padding:2.5rem;color:#fff}
+  .lib-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 40%,#334155 100%);border-radius:20px;padding:2.5rem;color:#fff}
   .lib-hero-content{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem}
   .lib-hero-text h1{font-size:1.75rem;font-weight:800;color:#fff;margin-bottom:.375rem}
   .lib-hero-text p{font-size:.9rem;opacity:.85;max-width:480px;line-height:1.5}
@@ -398,7 +398,7 @@ const libStyles = `
   .lib-hero-search{display:flex;gap:.5rem;background:rgba(255,255,255,.15);border-radius:14px;padding:4px;backdrop-filter:blur(8px)}
   .lib-hero-search input{flex:1;border:none;outline:none;padding:.75rem 1rem;font-size:.9rem;background:transparent;color:#fff}
   .lib-hero-search input::placeholder{color:rgba(255,255,255,.6)}
-  .lib-hero-search button{background:#fff;color:#1e1b4b;border:none;padding:.75rem 1.5rem;border-radius:10px;font-weight:700;cursor:pointer;font-size:.85rem}
+  .lib-hero-search button{background:#fff;color:#0f172a;border:none;padding:.75rem 1.5rem;border-radius:10px;font-weight:700;cursor:pointer;font-size:.85rem}
   .lib-hero-search svg{color:rgba(255,255,255,.6);margin:auto .5rem}
 
   .lib-toolbar{display:flex;align-items:center;gap:.625rem}

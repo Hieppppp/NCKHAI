@@ -573,7 +573,7 @@ const aiStyles = `
   .kw { padding: 2px 8px; background: #eef2ff; color: var(--primary-indigo); border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
 
   .summarize-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--surface-low); }
-  .btn-summarize { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px; width: 100%; justify-content: center; }
+  .btn-summarize { background: linear-gradient(135deg, #4f46e5, #475569); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px; width: 100%; justify-content: center; }
   .btn-summarize:disabled { opacity: 0.6; cursor: not-allowed; }
   .summary-box { margin-top: 10px; padding: 12px; background: #f0fdf4; border-radius: 8px; border-left: 3px solid #10b981; }
   .summary-header { font-size: 0.7rem; font-weight: 800; color: #059669; display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
@@ -647,7 +647,7 @@ const aiStyles = `
   .trend-bar-label { font-size: 0.75rem; color: var(--on-surface-muted); width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .trend-bar { flex: 1; height: 8px; background: var(--surface-low); border-radius: 4px; overflow: hidden; }
   .trend-bar-fill { height: 100%; background: var(--primary-indigo); border-radius: 4px; transition: width 0.6s ease; }
-  .trend-bar-fill.purple { background: #7c3aed; }
+  .trend-bar-fill.purple { background: #475569; }
   .trend-bar-fill.green { background: #059669; }
   .trend-bar-count { font-size: 0.75rem; font-weight: 800; min-width: 20px; text-align: right; }
 

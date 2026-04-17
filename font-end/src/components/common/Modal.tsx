@@ -107,7 +107,7 @@ export function Modal({ open, onClose, title, subtitle, children, width, footer 
           align-items: center; gap: .375rem; border: none; transition: all .15s;
         }
         .g-btn.primary {
-          background: var(--signature-gradient, linear-gradient(135deg, #1A237E, #7C4DFF));
+          background: var(--signature-gradient, linear-gradient(135deg, #1A237E, #334155));
           color: #fff;
         }
         .g-btn.primary:disabled { opacity: .5; cursor: not-allowed; }

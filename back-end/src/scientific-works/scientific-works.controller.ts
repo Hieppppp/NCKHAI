@@ -1,7 +1,9 @@
 import {
   Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, ParseIntPipe,
+  Body, Param, Query, ParseIntPipe, UseInterceptors, UploadedFile, BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { Role } from '@prisma/client';
 import { ScientificWorksService } from './scientific-works.service.js';
 import { CreateWorkDto } from './dto/create-work.dto.js';
@@ -73,5 +75,43 @@ export class ScientificWorksController {
     @CurrentUser('role') role: Role,
   ) {
     return this.svc.remove(id, userId, role);
+  }
+
+  /** Upload file đính kèm cho đề tài - lưu lên MinIO, DB chỉ lưu path */
+  @Post(':id/files')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 },
+  }))
+  async uploadFile(
+    @Param('id', ParseIntPipe) workId: number,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('category') category: string | undefined,
+    @CurrentUser('id') userId: number,
+  ) {
+    if (!file) throw new BadRequestException('Vui lòng chọn file');
+    return this.svc.uploadFile(workId, file.buffer, file.originalname, file.mimetype, file.size, userId, category);
+  }
+
+  /** Lấy danh sách file của đề tài */
+  @Get(':id/files')
+  getFiles(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.getFiles(id);
+  }
+
+  /** Download file - trả về presigned URL từ MinIO */
+  @Get('files/:fileId/download')
+  async downloadFile(@Param('fileId', ParseIntPipe) fileId: number) {
+    return this.svc.getDownloadUrl(fileId);
+  }
+
+  /** Xóa file */
+  @Delete('files/:fileId')
+  deleteFile(
+    @Param('fileId', ParseIntPipe) fileId: number,
+    @CurrentUser('id') userId: number,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.svc.deleteFile(fileId, userId, role);
   }
 }

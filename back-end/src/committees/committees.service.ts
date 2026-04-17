@@ -59,7 +59,21 @@ export class CommitteesService {
     const c = await this.prisma.committee.findUnique({
       where: { id },
       include: {
-        work: { select: { id: true, title: true, authors: true, abstract: true, status: true, level: true } },
+        work: {
+          select: {
+            id: true, title: true, authors: true, abstract: true, status: true, level: true,
+            type: true, keywords: true, budget: true, journalName: true,
+            user: { select: { id: true, name: true, email: true, department: true } },
+            files: {
+              select: {
+                id: true, originalName: true, mimeType: true, size: true,
+                category: true, createdAt: true,
+                uploader: { select: { id: true, name: true } },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
+          },
+        },
         members: { include: { user: { select: { id: true, name: true, email: true, specialization: true } } } },
         reviews: {
           include: { reviewer: { select: { id: true, name: true, email: true } } },

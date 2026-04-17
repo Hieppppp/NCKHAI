@@ -97,7 +97,7 @@ export default function DashboardPage() {
       <section className="quick-links">
         {[
           { icon: BookOpen, label: 'Quản lý Đề tài', path: '/projects', color: '#4f46e5' },
-          { icon: FileText, label: 'Công bố KH', path: '/publications', color: '#7c3aed' },
+          { icon: FileText, label: 'Công bố KH', path: '/publications', color: '#475569' },
           { icon: Users, label: 'Hội đồng', path: '/committees', color: '#0891b2' },
           { icon: DollarSign, label: 'Kinh phí', path: '/finance', color: '#d97706' },
           { icon: Library, label: 'Thư viện số', path: '/library', color: '#059669' },
@@ -263,17 +263,17 @@ const dashStyles = `
   .dash-loading { display: flex; justify-content: center; padding: 80px; }
 
   /* Hero */
-  .dash-hero { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%); border-radius: 20px; padding: 2.5rem; display: flex; justify-content: space-between; align-items: center; color: white; }
+  .dash-hero { background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #334155 100%); border-radius: 20px; padding: 2.5rem; display: flex; justify-content: space-between; align-items: center; color: white; }
   .hero-left { flex: 1; }
   .hero-greeting { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
   .hero-greeting h1 { font-size: 1.75rem; font-weight: 800; color: white; }
   .hero-role { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 100px; background: rgba(255,255,255,0.15); font-size: 0.7rem; font-weight: 700; }
   .hero-desc { font-size: 0.9rem; opacity: 0.85; line-height: 1.6; max-width: 520px; margin-bottom: 1.5rem; }
-  .hero-desc strong { color: #a5b4fc; font-weight: 800; }
+  .hero-desc strong { color: #cbd5e1; font-weight: 800; }
   .hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .btn-hero { display: flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 0.8125rem; cursor: pointer; border: none; transition: transform 0.15s; }
   .btn-hero:hover { transform: translateY(-1px); }
-  .btn-hero.primary { background: white; color: #1e1b4b; }
+  .btn-hero.primary { background: white; color: #0f172a; }
   .btn-hero.secondary { background: rgba(255,255,255,0.12); color: white; border: 1.5px solid rgba(255,255,255,0.2); }
   .hero-right { flex-shrink: 0; margin-left: 2rem; }
   .hero-stat-ring { position: relative; width: 140px; height: 140px; }
