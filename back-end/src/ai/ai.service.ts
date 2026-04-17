@@ -56,7 +56,11 @@ export class AiService {
   async checkSimilarity(text: string, excludeWorkId?: number) {
     const works = await this.prisma.scientificWork.findMany({
       where: excludeWorkId ? { id: { not: excludeWorkId } } : {},
-      select: { id: true, title: true, abstract: true, content: true },
+      select: {
+        id: true, title: true, abstract: true, content: true, authors: true,
+        type: true, level: true, createdAt: true, keywords: true,
+        user: { select: { id: true, name: true, department: true } },
+      },
     });
 
     const corpus = works
@@ -74,7 +78,47 @@ export class AiService {
     });
 
     if (!response.ok) throw new Error('Similarity check failed');
-    return response.json();
+    const data: any = await response.json();
+
+    // Enrich results với thông tin chi tiết
+    const enrichedResults = (data.results || []).map((r: any) => {
+      const work = works.find((w) => w.id === r.workId);
+      return {
+        ...r,
+        authors: work?.authors,
+        type: work?.type,
+        level: work?.level,
+        createdAt: work?.createdAt,
+        keywords: work?.keywords || [],
+        user: work?.user,
+        riskLevel: r.similarity > 50 ? 'high' : r.similarity > 30 ? 'medium' : r.similarity > 15 ? 'low' : 'safe',
+      };
+    });
+
+    // Tổng hợp
+    const maxSim = data.maxSimilarity || 0;
+    const avgSim = enrichedResults.length > 0
+      ? enrichedResults.reduce((s: number, r: any) => s + r.similarity, 0) / enrichedResults.length
+      : 0;
+    const highRiskCount = enrichedResults.filter((r: any) => r.similarity > 30).length;
+
+    return {
+      maxSimilarity: maxSim,
+      avgSimilarity: Math.round(avgSim * 100) / 100,
+      totalCompared: corpus.length,
+      highRiskCount,
+      riskLevel: maxSim > 50 ? 'critical' : maxSim > 30 ? 'high' : maxSim > 15 ? 'medium' : 'safe',
+      verdict: maxSim > 50
+        ? 'Phát hiện đạo văn nghiêm trọng - cần xem xét lại'
+        : maxSim > 30
+        ? 'Trùng lặp đáng kể - cần kiểm tra và trích dẫn'
+        : maxSim > 15
+        ? 'Có một số điểm tương đồng - nên tham khảo'
+        : 'Nội dung an toàn, không phát hiện đạo văn',
+      textLength: text.length,
+      wordCount: text.split(/\s+/).filter(Boolean).length,
+      results: enrichedResults,
+    };
   }
 
   /**
@@ -151,10 +195,144 @@ export class AiService {
   }
 
   /**
-   * Analyze research trends.
-   * PostgreSQL function (1 query) with JS fallback.
+   * Analyze research trends - phân tích xu hướng NCKH.
+   * Trả về: keywords, phân bố theo loại/cấp/năm, top authors, top departments, growth rate, insights.
    */
   async analyzeTrends() {
+    const [works, users] = await Promise.all([
+      this.prisma.scientificWork.findMany({
+        select: {
+          id: true, title: true, keywords: true, createdAt: true,
+          type: true, level: true, status: true, aiScore: true, budget: true,
+          user: { select: { id: true, name: true, department: true } },
+        },
+      }),
+      this.prisma.user.count(),
+    ]);
+
+    const total = works.length;
+
+    // Top keywords
+    const kwFreq = new Map<string, number>();
+    for (const w of works) {
+      for (const kw of w.keywords) {
+        kwFreq.set(kw, (kwFreq.get(kw) || 0) + 1);
+      }
+    }
+    const topKeywords = Array.from(kwFreq.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([keyword, count]) => ({
+        keyword,
+        count,
+        percentage: Math.round((count / total) * 100 * 10) / 10,
+      }));
+
+    // By year + growth
+    const yearFreq = new Map<number, number>();
+    for (const w of works) {
+      const year = w.createdAt.getFullYear();
+      yearFreq.set(year, (yearFreq.get(year) || 0) + 1);
+    }
+    const byYear = Array.from(yearFreq.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([year, count]) => ({ year, count }));
+
+    // Growth rate (so với năm trước)
+    const currentYear = new Date().getFullYear();
+    const thisYear = yearFreq.get(currentYear) || 0;
+    const lastYear = yearFreq.get(currentYear - 1) || 0;
+    const growthRate = lastYear > 0 ? Math.round(((thisYear - lastYear) / lastYear) * 100) : 0;
+
+    // By type
+    const typeFreq = new Map<string, number>();
+    for (const w of works) typeFreq.set(w.type, (typeFreq.get(w.type) || 0) + 1);
+    const byType = Array.from(typeFreq.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => ({ type, count, percentage: Math.round((count / total) * 100 * 10) / 10 }));
+
+    // By level
+    const levelFreq = new Map<string, number>();
+    for (const w of works) levelFreq.set(w.level, (levelFreq.get(w.level) || 0) + 1);
+    const byLevel = Array.from(levelFreq.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([level, count]) => ({ level, count, percentage: Math.round((count / total) * 100 * 10) / 10 }));
+
+    // By status
+    const statusFreq = new Map<string, number>();
+    for (const w of works) statusFreq.set(w.status, (statusFreq.get(w.status) || 0) + 1);
+    const byStatus = Array.from(statusFreq.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([status, count]) => ({ status, count }));
+
+    // Top authors (tác giả có nhiều công trình)
+    const authorFreq = new Map<string, { name: string; count: number; department: string | null }>();
+    for (const w of works) {
+      if (w.user) {
+        const key = String(w.user.id);
+        const cur = authorFreq.get(key) || { name: w.user.name || 'N/A', count: 0, department: w.user.department };
+        cur.count++;
+        authorFreq.set(key, cur);
+      }
+    }
+    const topAuthors = Array.from(authorFreq.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // Top departments
+    const deptFreq = new Map<string, number>();
+    for (const w of works) {
+      const dept = w.user?.department;
+      if (dept) deptFreq.set(dept, (deptFreq.get(dept) || 0) + 1);
+    }
+    const topDepartments = Array.from(deptFreq.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([department, count]) => ({ department, count }));
+
+    // Budget analysis
+    const worksWithBudget = works.filter(w => w.budget);
+    const totalBudget = worksWithBudget.reduce((s, w) => s + (w.budget || 0), 0);
+    const avgBudget = worksWithBudget.length > 0 ? totalBudget / worksWithBudget.length : 0;
+
+    // AI score distribution
+    const worksWithScore = works.filter(w => w.aiScore);
+    const avgAiScore = worksWithScore.length > 0
+      ? worksWithScore.reduce((s, w) => s + (w.aiScore || 0), 0) / worksWithScore.length
+      : 0;
+
+    // Insights
+    const insights: string[] = [];
+    if (topKeywords[0]) insights.push(`"${topKeywords[0].keyword}" là từ khóa xuất hiện nhiều nhất (${topKeywords[0].count} công trình)`);
+    if (growthRate !== 0) insights.push(`Số công trình ${growthRate > 0 ? 'tăng' : 'giảm'} ${Math.abs(growthRate)}% so với năm ${currentYear - 1}`);
+    if (byLevel[0]) insights.push(`Phần lớn công trình ở ${byLevel[0].level === 'STATE' ? 'cấp Nhà nước' : byLevel[0].level === 'MINISTRY' ? 'cấp Bộ' : 'cấp Trường'} (${byLevel[0].percentage}%)`);
+    if (topDepartments[0]) insights.push(`${topDepartments[0].department} dẫn đầu với ${topDepartments[0].count} công trình`);
+    if (avgAiScore > 0) insights.push(`Điểm AI trung bình: ${avgAiScore.toFixed(1)}/100`);
+
+    return {
+      overview: {
+        total,
+        totalUsers: users,
+        totalBudget,
+        avgBudget: Math.round(avgBudget),
+        avgAiScore: Math.round(avgAiScore * 10) / 10,
+        growthRate,
+        thisYear,
+        lastYear,
+      },
+      topKeywords,
+      byYear,
+      byType,
+      byLevel,
+      byStatus,
+      topAuthors,
+      topDepartments,
+      insights,
+    };
+  }
+
+  /** @deprecated dùng analyzeTrends() thay thế */
+  async _analyzeTrendsFallback() {
     const fast = await callDbFunction<Record<string, unknown>>(
       this.prisma,
       'fn_research_trends',

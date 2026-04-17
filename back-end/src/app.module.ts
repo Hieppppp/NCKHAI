@@ -17,6 +17,7 @@ import { ResearchHoursModule } from './research-hours/research-hours.module.js';
 import { SettingsModule } from './settings/settings.module.js';
 import { TemplatesModule } from './templates/templates.module.js';
 import { QueueModule } from './queue/queue.module.js';
+import { FilesModule } from './files/files.module.js';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from './auth/guards/roles.guard.js';
 
@@ -37,6 +38,7 @@ import { RolesGuard } from './auth/guards/roles.guard.js';
     SettingsModule,
     TemplatesModule,
     QueueModule,
+    FilesModule,
   ],
   controllers: [AppController],
   providers: [

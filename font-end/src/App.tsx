@@ -17,6 +17,8 @@ import ProfilePage from './pages/ProfilePage';
 import ResearchHoursPage from './pages/ResearchHoursPage';
 import SettingsPage from './pages/SettingsPage';
 import DocumentTemplatePage from './pages/DocumentTemplatePage';
+import FileManagerPage from './pages/FileManagerPage';
+import JobManagerPage from './pages/JobManagerPage';
 import { Role } from './types';
 
 function Wrapped({ children }: { children: React.ReactNode }) {
@@ -59,6 +61,12 @@ function App() {
 
       {/* Document Templates */}
       <Route path="/templates" element={<Wrapped><DocumentTemplatePage /></Wrapped>} />
+
+      {/* File Manager */}
+      <Route path="/files" element={<Wrapped><FileManagerPage /></Wrapped>} />
+
+      {/* Job Manager */}
+      <Route path="/jobs" element={<Wrapped><JobManagerPage /></Wrapped>} />
 
       {/* Settings */}
       <Route path="/settings" element={<Wrapped><SettingsPage /></Wrapped>} />
