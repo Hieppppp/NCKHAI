@@ -319,7 +319,7 @@ export default function AiAnalysis() {
                                 style={{ position: 'absolute', left: a.bbox.x * s, top: a.bbox.y * s, width: a.bbox.width * s, height: a.bbox.height * s,
                                   border: `1.5px solid ${c}`, background: `${c}10`, borderRadius: 1, cursor: 'pointer' }}>
                                 {bboxLevel === 'line' && zoom >= 0.75 && (
-                                  <span style={{ position: 'absolute', top: '50%', left: 3, transform: 'translateY(-50%)', fontSize: Math.max(7, 9 * zoom), color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: a.bbox.width * s - 6 }}>{a.text}</span>
+                                  <span style={{ position: 'absolute', top: '50%', left: 3, transform: 'translateY(-50%)', fontSize: Math.max(7, 9 * zoom), color: '#1e40af', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: a.bbox.width * s - 6 }}>{a.text}</span>
                                 )}
                               </div>
                             );
@@ -573,11 +573,11 @@ const aiStyles = `
   .kw { padding: 2px 8px; background: #eef2ff; color: var(--primary-indigo); border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
 
   .summarize-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--surface-low); }
-  .btn-summarize { background: linear-gradient(135deg, #4f46e5, #475569); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px; width: 100%; justify-content: center; }
+  .btn-summarize { background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px; width: 100%; justify-content: center; }
   .btn-summarize:disabled { opacity: 0.6; cursor: not-allowed; }
   .summary-box { margin-top: 10px; padding: 12px; background: #f0fdf4; border-radius: 8px; border-left: 3px solid #10b981; }
   .summary-header { font-size: 0.7rem; font-weight: 800; color: #059669; display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
-  .summary-box p { font-size: 0.8rem; line-height: 1.6; color: #1e293b; }
+  .summary-box p { font-size: 0.8rem; line-height: 1.6; color: #1e40af; }
 
   /* Preview tabs */
   .view-tabs { margin-left: auto; display: flex; gap: 3px; }
@@ -591,8 +591,8 @@ const aiStyles = `
   .copy-btn { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--surface-variant); background: var(--surface-lowest); cursor: pointer; font-size: 0.7rem; font-weight: 600; color: var(--on-surface-muted); }
   .text-content { background: var(--surface-low); padding: 14px; border-radius: 10px; font-size: 0.8rem; line-height: 1.7; max-height: 500px; overflow: auto; white-space: pre-wrap; font-family: inherit; }
   .code-block { padding: 14px; border-radius: 10px; font-size: 0.72rem; line-height: 1.6; max-height: 500px; overflow: auto; font-family: "JetBrains Mono", "Fira Code", monospace; }
-  .code-block.dark { background: #1e293b; color: #e2e8f0; }
-  .code-block.light { background: #fffbeb; color: #1e293b; white-space: pre-wrap; }
+  .code-block.dark { background: #1e40af; color: #e2e8f0; }
+  .code-block.light { background: #fffbeb; color: #1e40af; white-space: pre-wrap; }
 
   /* BBox */
   .bbox-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
@@ -647,7 +647,7 @@ const aiStyles = `
   .trend-bar-label { font-size: 0.75rem; color: var(--on-surface-muted); width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .trend-bar { flex: 1; height: 8px; background: var(--surface-low); border-radius: 4px; overflow: hidden; }
   .trend-bar-fill { height: 100%; background: var(--primary-indigo); border-radius: 4px; transition: width 0.6s ease; }
-  .trend-bar-fill.purple { background: #475569; }
+  .trend-bar-fill.purple { background: #3b82f6; }
   .trend-bar-fill.green { background: #059669; }
   .trend-bar-count { font-size: 0.75rem; font-weight: 800; min-width: 20px; text-align: right; }
 

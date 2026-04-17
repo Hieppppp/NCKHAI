@@ -607,7 +607,7 @@ export const ProjectManagement = () => {
 
         .timeline-icon.success { background: #d1fae5; color: #059669; }
         .timeline-icon.info { background: #e0f2fe; color: #0284c7; }
-        .timeline-icon.start { background: #eef2ff; color: #4f46e5; }
+        .timeline-icon.start { background: #eef2ff; color: #2563eb; }
 
         .timeline-text {
           font-size: 0.875rem;

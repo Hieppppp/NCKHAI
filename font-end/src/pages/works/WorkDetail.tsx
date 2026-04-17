@@ -12,7 +12,7 @@ import { useToast } from '../../components/common/Toast';
 import { Role } from '../../types';
 
 const StatusColors: Record<string, string> = {
-  DRAFT: '#94a3b8', SUBMITTED: '#3b82f6', OUTLINE_REVIEW: '#475569',
+  DRAFT: '#94a3b8', SUBMITTED: '#3b82f6', OUTLINE_REVIEW: '#3b82f6',
   PROPOSAL_REVIEW: '#6366f1', IN_PROGRESS: '#f59e0b', REVIEW: '#ec4899',
   REVISION: '#f97316', ACCEPTED: '#10b981', REJECTED: '#ef4444', ARCHIVED: '#64748b',
 };

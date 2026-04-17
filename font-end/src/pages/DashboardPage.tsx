@@ -87,7 +87,7 @@ export default function DashboardPage() {
 
       {/* Stats Cards */}
       <section className="stats-grid">
-        <StatCard icon={FileText} label="Tổng công trình" value={totalWorks} color="#4f46e5" sub={`${Object.keys(stats?.byType || {}).length} loại hình`} onClick={() => navigate('/projects')} />
+        <StatCard icon={FileText} label="Tổng công trình" value={totalWorks} color="#2563eb" sub={`${Object.keys(stats?.byType || {}).length} loại hình`} onClick={() => navigate('/projects')} />
         <StatCard icon={Clock} label="Chờ xử lý" value={pending} color="#f59e0b" sub="cần phản biện / duyệt" onClick={() => navigate('/projects')} />
         <StatCard icon={Award} label="Đã nghiệm thu" value={accepted} color="#10b981" sub={`${totalWorks > 0 ? ((accepted / totalWorks) * 100).toFixed(0) : 0}% tổng số`} onClick={() => navigate('/projects')} />
         <StatCard icon={Users} label="Người dùng" value={totalUsers} color="#8b5cf6" sub="giảng viên, sinh viên" onClick={() => navigate('/admin/users')} />
@@ -96,8 +96,8 @@ export default function DashboardPage() {
       {/* Quick Links */}
       <section className="quick-links">
         {[
-          { icon: BookOpen, label: 'Quản lý Đề tài', path: '/projects', color: '#4f46e5' },
-          { icon: FileText, label: 'Công bố KH', path: '/publications', color: '#475569' },
+          { icon: BookOpen, label: 'Quản lý Đề tài', path: '/projects', color: '#2563eb' },
+          { icon: FileText, label: 'Công bố KH', path: '/publications', color: '#3b82f6' },
           { icon: Users, label: 'Hội đồng', path: '/committees', color: '#0891b2' },
           { icon: DollarSign, label: 'Kinh phí', path: '/finance', color: '#d97706' },
           { icon: Library, label: 'Thư viện số', path: '/library', color: '#059669' },
@@ -263,7 +263,7 @@ const dashStyles = `
   .dash-loading { display: flex; justify-content: center; padding: 80px; }
 
   /* Hero */
-  .dash-hero { background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #334155 100%); border-radius: 20px; padding: 2.5rem; display: flex; justify-content: space-between; align-items: center; color: white; }
+  .dash-hero { background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 40%, #2563eb 100%); border-radius: 20px; padding: 2.5rem; display: flex; justify-content: space-between; align-items: center; color: white; }
   .hero-left { flex: 1; }
   .hero-greeting { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
   .hero-greeting h1 { font-size: 1.75rem; font-weight: 800; color: white; }
@@ -273,7 +273,7 @@ const dashStyles = `
   .hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .btn-hero { display: flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 0.8125rem; cursor: pointer; border: none; transition: transform 0.15s; }
   .btn-hero:hover { transform: translateY(-1px); }
-  .btn-hero.primary { background: white; color: #0f172a; }
+  .btn-hero.primary { background: white; color: #1e3a8a; }
   .btn-hero.secondary { background: rgba(255,255,255,0.12); color: white; border: 1.5px solid rgba(255,255,255,0.2); }
   .hero-right { flex-shrink: 0; margin-left: 2rem; }
   .hero-stat-ring { position: relative; width: 140px; height: 140px; }

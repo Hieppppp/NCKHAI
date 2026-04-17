@@ -10,7 +10,7 @@ import { useToast } from '../components/common/Toast';
 import { RoleLabels } from '../types';
 import type { User as UserType } from '../types';
 
-const ROLE_COLORS: Record<string, string> = { ADMIN: '#dc2626', REVIEWER: '#475569', LECTURER: '#2563eb', STUDENT: '#059669' };
+const ROLE_COLORS: Record<string, string> = { ADMIN: '#dc2626', REVIEWER: '#3b82f6', LECTURER: '#2563eb', STUDENT: '#059669' };
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -49,8 +49,8 @@ export default function ProfilePage() {
   if (!p) return null;
 
   const stats = [
-    { icon: BookOpen, label: 'Đề tài NCKH', value: p._count?.scientificWorks || 0, color: '#4f46e5' },
-    { icon: FileText, label: 'Công bố khoa học', value: p._count?.publications || 0, color: '#475569' },
+    { icon: BookOpen, label: 'Đề tài NCKH', value: p._count?.scientificWorks || 0, color: '#2563eb' },
+    { icon: FileText, label: 'Công bố khoa học', value: p._count?.publications || 0, color: '#3b82f6' },
     { icon: ClipboardCheck, label: 'Đánh giá phản biện', value: p._count?.reviews || 0, color: '#0891b2' },
   ];
 
@@ -63,7 +63,7 @@ export default function ProfilePage() {
           <div className="pf-hero-info">
             <h1>{p.name || 'Chưa cập nhật tên'}</h1>
             <div className="pf-hero-meta">
-              <span className="pf-role-pill" style={{ background: ROLE_COLORS[p.role] || '#4f46e5' }}>
+              <span className="pf-role-pill" style={{ background: ROLE_COLORS[p.role] || '#2563eb' }}>
                 <Shield size={11} /> {RoleLabels[p.role]}
               </span>
               {p.department && <span className="pf-meta-tag"><Building2 size={13} /> {p.department}</span>}
@@ -122,7 +122,7 @@ export default function ProfilePage() {
           <div className="pf-account">
             <div className="pf-acc-row">
               <span>Vai trò hệ thống</span>
-              <span className="pf-role-pill" style={{ background: ROLE_COLORS[p.role] || '#4f46e5' }}>{RoleLabels[p.role]}</span>
+              <span className="pf-role-pill" style={{ background: ROLE_COLORS[p.role] || '#2563eb' }}>{RoleLabels[p.role]}</span>
             </div>
             <div className="pf-acc-row">
               <span>Trạng thái</span>
@@ -144,7 +144,7 @@ export default function ProfilePage() {
         .pf{display:flex;flex-direction:column;gap:1.5rem;padding-bottom:3rem}
         .pf-loading{display:flex;justify-content:center;padding:80px}
 
-        .pf-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 40%,#334155 100%);border-radius:20px;padding:2.5rem;color:#fff}
+        .pf-hero{background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 40%,#2563eb 100%);border-radius:20px;padding:2.5rem;color:#fff}
         .pf-hero-inner{display:flex;align-items:center;gap:1.5rem}
         .pf-avatar-lg{width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;border:3px solid rgba(255,255,255,.3);flex-shrink:0}
         .pf-hero-info{flex:1}
@@ -152,7 +152,7 @@ export default function ProfilePage() {
         .pf-hero-meta{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
         .pf-role-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;color:#fff;font-size:.7rem;font-weight:700}
         .pf-meta-tag{display:flex;align-items:center;gap:4px;font-size:.8rem;opacity:.8}
-        .pf-hero-btn{background:#fff;color:#0f172a;border:none;padding:10px 20px;border-radius:10px;font-weight:700;font-size:.8rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
+        .pf-hero-btn{background:#fff;color:#1e3a8a;border:none;padding:10px 20px;border-radius:10px;font-weight:700;font-size:.8rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
         .pf-hero-btn.cancel{background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.3)}
 
         .pf-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}

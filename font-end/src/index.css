@@ -8,12 +8,13 @@
   --surface-high: #e2e8f0;
   --surface-variant: #e2e8f0;
 
-  /* Brand Colors - Slate/Gray chuyên nghiệp */
-  --primary-indigo: #0f172a;      /* slate-900 - màu chính */
-  --primary-violet: #334155;      /* slate-700 - màu phụ */
-  --primary-accent: #475569;      /* slate-600 - accent */
-  --signature-gradient: linear-gradient(135deg, #0f172a 0%, #334155 100%);
-  --hero-gradient: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+  /* Brand Colors - Blue professional */
+  --primary-indigo: #1e40af;      /* blue-800 - màu chính */
+  --primary-violet: #2563eb;      /* blue-600 - màu phụ */
+  --primary-accent: #3b82f6;      /* blue-500 - accent */
+  --primary-blue-light: #dbeafe;  /* blue-100 - background nhẹ */
+  --signature-gradient: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  --hero-gradient: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
 
   /* Text Colors */
   --on-surface: #0f172a;

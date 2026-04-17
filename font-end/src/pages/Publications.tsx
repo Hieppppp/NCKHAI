@@ -706,7 +706,7 @@ const pubStyles = `
   /* Processing layout */
   .processing-layout { display: grid; grid-template-columns: 420px 1fr; gap: 1.5rem; align-items: start; }
   .section-label { font-size: 0.75rem; font-weight: 800; color: var(--on-surface-muted); letter-spacing: 0.05em; margin-bottom: 0.75rem; }
-  .document-frame { background: #334155; border-radius: 16px; height: 600px; padding: 0.375rem; overflow: hidden; }
+  .document-frame { background: #2563eb; border-radius: 16px; height: 600px; padding: 0.375rem; overflow: hidden; }
   .doc-placeholder { background: white; width: 100%; height: 100%; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 
   /* Results */

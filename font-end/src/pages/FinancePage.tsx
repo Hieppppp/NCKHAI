@@ -89,7 +89,7 @@ export default function FinancePage() {
   const disbPct = totalBudget > 0 ? ((totalDisbursed / totalBudget) * 100).toFixed(0) : '0';
   const depts = stats?.byDepartment?.filter(d => d.department) || [];
   const deptTotal = depts.reduce((s, d) => s + (d._sum.totalAmount || 0), 0);
-  const COLORS = ['#4f46e5', '#475569', '#2563eb', '#0891b2', '#059669', '#d97706'];
+  const COLORS = ['#2563eb', '#3b82f6', '#2563eb', '#0891b2', '#059669', '#d97706'];
 
   return (
     <div className="fin">
@@ -114,7 +114,7 @@ export default function FinancePage() {
 
       {/* Stats */}
       <div className="fin-stats">
-        <StatCard icon={DollarSign} label="Tổng ngân sách" value={formatVND(totalBudget)} color="#4f46e5" sub={`${depts.length} khoa/phòng`} />
+        <StatCard icon={DollarSign} label="Tổng ngân sách" value={formatVND(totalBudget)} color="#2563eb" sub={`${depts.length} khoa/phòng`} />
         <StatCard icon={TrendingUp} label="Đã giải ngân" value={formatVND(totalDisbursed)} color="#16a34a" sub={`${disbPct}% tổng ngân sách`} />
         <StatCard icon={Briefcase} label="Đề tài đang thực hiện" value={String(stats?.activeProjects || 0)} color="#d97706" sub="đang nghiên cứu" />
         <StatCard icon={Award} label="Khen thưởng" value={formatVND(stats?.totalRewards || 0)} color="#db2777" sub={`${rewards.length} quyết định`} />
@@ -269,13 +269,13 @@ const finStyles = `
   .fin{display:flex;flex-direction:column;gap:1.5rem;padding-bottom:3rem}
   .fin-loading{display:flex;justify-content:center;padding:80px}
 
-  .fin-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 40%,#334155 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
+  .fin-hero{background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 40%,#2563eb 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
   .fin-hero-left h1{font-size:1.75rem;font-weight:800;color:#fff;margin-bottom:.375rem}
   .fin-hero-left p{font-size:.9rem;opacity:.85;margin-bottom:1.25rem}
   .fin-hero-left strong{color:#cbd5e1}
   .fin-hero-actions{display:flex;gap:8px;flex-wrap:wrap}
   .fin-btn-hero{display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-weight:700;font-size:.8rem;cursor:pointer;border:none}
-  .fin-btn-hero.primary{background:#fff;color:#0f172a}
+  .fin-btn-hero.primary{background:#fff;color:#1e3a8a}
   .fin-btn-hero.secondary{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.2)}
   .fin-hero-ring{position:relative;width:120px;height:120px;flex-shrink:0}
   .fin-hero-ring svg{width:100%;height:100%}
@@ -319,7 +319,7 @@ const finStyles = `
   .fin-act{width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .fin-act.approve{background:#d1fae5;color:#059669}
   .fin-act.reject{background:#fee2e2;color:#dc2626}
-  .fin-act.award{background:#ede9fe;color:#475569}
+  .fin-act.award{background:#ede9fe;color:#3b82f6}
   .fin-act-group{display:flex;gap:3px}
 
   .fin-table-card{padding:0!important;overflow:hidden}

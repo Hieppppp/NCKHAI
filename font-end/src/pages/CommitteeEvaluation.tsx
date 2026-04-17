@@ -260,10 +260,10 @@ export const CommitteeEvaluation = () => {
       </section>
 
       <div className="ce-stats">
-        <div className="surface-card ce-stat"><Users size={22} color="#4f46e5" /><div><span className="ce-stat-val">{committees.length}</span><span className="ce-stat-label">Tổng hội đồng</span></div></div>
+        <div className="surface-card ce-stat"><Users size={22} color="#2563eb" /><div><span className="ce-stat-val">{committees.length}</span><span className="ce-stat-label">Tổng hội đồng</span></div></div>
         <div className="surface-card ce-stat"><CheckCircle size={22} color="#10b981" /><div><span className="ce-stat-val">{completed}</span><span className="ce-stat-label">Đã hoàn thành</span></div></div>
         <div className="surface-card ce-stat"><Clock size={22} color="#f59e0b" /><div><span className="ce-stat-val">{committees.length - completed}</span><span className="ce-stat-label">Đang chờ</span></div></div>
-        <div className="surface-card ce-stat"><Star size={22} color="#475569" /><div><span className="ce-stat-val">{avgScore}</span><span className="ce-stat-label">Điểm TB</span></div></div>
+        <div className="surface-card ce-stat"><Star size={22} color="#3b82f6" /><div><span className="ce-stat-val">{avgScore}</span><span className="ce-stat-label">Điểm TB</span></div></div>
       </div>
 
       {loading ? <div className="ce-loading"><Loader2 size={32} className="ce-spin" color="var(--primary-indigo)" /></div> : committees.length === 0 ? (
@@ -347,10 +347,10 @@ const ceStyles = `
   .ce-muted{color:var(--on-surface-muted);font-size:.85rem}
   .ce-success{display:flex;align-items:center;gap:8px;background:#d1fae5;color:#065f46;padding:12px 16px;border-radius:12px;font-weight:600;font-size:.875rem}
 
-  .ce-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 40%,#334155 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
+  .ce-hero{background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 40%,#2563eb 100%);border-radius:20px;padding:2.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center}
   .ce-hero-left h1{font-size:1.75rem;font-weight:800;color:#fff;margin-bottom:.375rem}
   .ce-hero-left p{font-size:.9rem;opacity:.85;margin-bottom:1.25rem}
-  .ce-hero-btn{background:#fff;color:#0f172a;border:none;padding:10px 20px;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .ce-hero-btn{background:#fff;color:#1e3a8a;border:none;padding:10px 20px;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:6px}
   .ce-hero-ring{position:relative;width:120px;height:120px;flex-shrink:0}
   .ce-hero-ring svg{width:100%;height:100%}
   .ce-ring-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
@@ -387,7 +387,7 @@ const ceStyles = `
   .ce-side{display:flex;flex-direction:column;gap:1rem}
 
   .ce-project{display:flex;gap:1.5rem;padding:1.5rem!important}
-  .ce-proj-visual{width:160px;height:180px;background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:14px;position:relative;overflow:hidden;flex-shrink:0}
+  .ce-proj-visual{width:160px;height:180px;background:linear-gradient(135deg,#1e3a8a,#1e40af);border-radius:14px;position:relative;overflow:hidden;flex-shrink:0}
   .ce-proj-overlay{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);padding:.75rem;color:#fff}
   .ce-proj-overlay small{font-size:.55rem;opacity:.7;display:block}
   .ce-proj-overlay strong{font-size:.8rem}
@@ -455,7 +455,7 @@ const ceStyles = `
   .ce-rec-pill{display:inline-block;margin-top:.375rem;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:4px}
   .ce-rec-pill.accept{background:#d1fae5;color:#059669}.ce-rec-pill.reject{background:#fee2e2;color:#dc2626}.ce-rec-pill.revise{background:#fef3c7;color:#d97706}
 
-  .ce-ai-card{background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border-radius:16px;padding:1.25rem}
+  .ce-ai-card{background:linear-gradient(135deg,#1e3a8a,#1e40af);color:#fff;border-radius:16px;padding:1.25rem}
   .ce-ai-head{display:flex;align-items:center;gap:6px;font-weight:800;font-size:.75rem;margin-bottom:.75rem}
   .ce-ai-hint{font-size:.8rem;opacity:.7}
   .ce-expert-list{display:flex;flex-direction:column;gap:.5rem}
