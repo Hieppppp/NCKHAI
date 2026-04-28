@@ -11,6 +11,16 @@ export const aiService = {
     });
     return data;
   },
+  /** Upload async qua job queue - trả về jobId ngay, OCR chạy nền */
+  async uploadAsync(file: File, workId?: number): Promise<{ jobId: string; file: { id: number; objectName: string; originalName: string } }> {
+    const form = new FormData();
+    form.append('file', file);
+    if (workId) form.append('workId', String(workId));
+    const { data } = await api.post('/ai/upload-async', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
   async checkSimilarity(text: string, workId?: number) {
     const { data } = await api.post('/ai/similarity', { text, workId });
     return data;

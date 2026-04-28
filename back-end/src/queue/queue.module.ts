@@ -4,6 +4,10 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { QueueService } from './queue.service.js';
 import { QueueController } from './queue.controller.js';
 import { OcrProcessor } from './processors/ocr.processor.js';
+import { SummarizeProcessor } from './processors/summarize.processor.js';
+import { EmbeddingProcessor } from './processors/embedding.processor.js';
+import { EmailProcessor } from './processors/email.processor.js';
+import { ReportProcessor } from './processors/report.processor.js';
 import { QUEUE_NAMES } from './queue.constants.js';
 
 export { QUEUE_NAMES };
@@ -33,7 +37,7 @@ export { QUEUE_NAMES };
     ),
   ],
   controllers: [QueueController],
-  providers: [QueueService, OcrProcessor],
+  providers: [QueueService, OcrProcessor, SummarizeProcessor, EmbeddingProcessor, EmailProcessor, ReportProcessor],
   exports: [BullModule, QueueService],
 })
 export class QueueModule {}

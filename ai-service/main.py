@@ -57,6 +57,35 @@ def health():
     }
 
 
+# ─── Upload chỉ vào MinIO (không OCR) - cho async queue ──
+
+@app.post("/upload-only")
+async def upload_only(file: UploadFile = File(...)):
+    """
+    Upload nhanh vào MinIO, KHÔNG chạy OCR.
+    Dùng cho luồng async: backend push job vào queue, worker mới chạy /reprocess.
+    """
+    file_bytes = await file.read()
+    if len(file_bytes) == 0:
+        raise HTTPException(400, "File rỗng")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "bin"
+    object_name = f"{uuid.uuid4().hex}.{ext}"
+
+    try:
+        minio_client.upload_file(object_name, file_bytes, file.content_type or "application/octet-stream")
+    except Exception as e:
+        logger.error(f"MinIO upload failed: {e}")
+        raise HTTPException(500, f"Lỗi lưu file: {e}")
+
+    return {
+        "objectName": object_name,
+        "originalName": file.filename,
+        "size": len(file_bytes),
+        "mimeType": file.content_type,
+    }
+
+
 # ─── Upload + OCR + Extract ──────────────────────────────
 
 @app.post("/process")
