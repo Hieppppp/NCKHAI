@@ -47,8 +47,8 @@ export const QUEUE_LABEL: Record<string, string> = {
   'ocr-processing': 'OCR tài liệu',
   'ai-summarize': 'Tóm tắt AI',
   'ai-embedding': 'Vector hóa AI',
-  'email': 'Gửi email',
-  'report': 'Báo cáo',
+  'email-notification': 'Gửi email',
+  'report-generation': 'Tạo báo cáo',
 };
 
 export const jobService = {

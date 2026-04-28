@@ -1,11 +1,13 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Sparkles, Search, AlertTriangle, CheckCircle,
   Loader2, Brain, TrendingUp, Code, FileJson, Eye, Layers,
   ZoomIn, ZoomOut, Copy, Check, FileSearch, MessageCircle,
-  Send, BookOpen, BarChart3, FileUp, Type,
+  Send, BookOpen, BarChart3, FileUp, Type, Zap, Clock,
 } from 'lucide-react';
 import { aiService } from '../../services/aiService';
+import { jobService, STATUS_LABEL, STATUS_COLOR } from '../../services/jobService';
+import type { JobRecord } from '../../services/jobService';
 import { useToast } from '../../components/common/Toast';
 
 type ViewMode = 'visual' | 'json' | 'markdown' | 'text';
@@ -32,6 +34,9 @@ export default function AiAnalysis() {
   // Upload & OCR
   const [uploading, setUploading] = useState(false);
   const [extraction, setExtraction] = useState<any>(null);
+  const [uploadMode, setUploadMode] = useState<'sync' | 'async'>('async');
+  const [activeJob, setActiveJob] = useState<JobRecord | null>(null);
+  const jobPollRef = useRef<any>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('text');
   const [showBbox, setShowBbox] = useState(true);
   const [bboxLevel, setBboxLevel] = useState<'word' | 'line'>('line');
@@ -64,14 +69,61 @@ export default function AiAnalysis() {
     if (!file) return;
     setUploading(true); setExtraction(null); setSummary(null);
     setViewMode('text'); setZoom(1); setSelectedPage(1);
+    setActiveJob(null);
     try {
-      const result = await aiService.uploadAndProcess(file);
-      setExtraction(result);
-      if (result.extraction?.text) setPlagiarismText(result.extraction.text.substring(0, 2000));
+      if (uploadMode === 'async') {
+        // Đẩy file lên MinIO + queue OCR job, rồi poll status
+        const res = await aiService.uploadAsync(file);
+        // Bắt đầu polling job
+        const initial = await jobService.getOne(res.jobId);
+        if (initial) setActiveJob(initial);
+        startJobPolling(res.jobId);
+      } else {
+        const result = await aiService.uploadAndProcess(file);
+        setExtraction(result);
+        if (result.extraction?.text) setPlagiarismText(result.extraction.text.substring(0, 2000));
+      }
     } catch (err: any) {
       showError(err.response?.data?.message || 'Upload thất bại');
     } finally { setUploading(false); }
   }
+
+  function startJobPolling(jobId: string) {
+    if (jobPollRef.current) clearInterval(jobPollRef.current);
+    jobPollRef.current = setInterval(async () => {
+      try {
+        const job = await jobService.getOne(jobId);
+        if (!job) return;
+        setActiveJob(job);
+        if (job.status === 'completed') {
+          clearInterval(jobPollRef.current);
+          if (job.result) {
+            // Map kết quả từ JobRecord sang format extraction giống upload sync
+            const r: any = job.result;
+            setExtraction({
+              file: { objectName: (job.input as any)?.objectName, originalName: (job.input as any)?.originalName },
+              extraction: {
+                ...(r.extraction || {}),
+                text: r.ocr?.text || '',
+                confidence: r.ocr?.confidence,
+                engine: r.ocr?.engine,
+                annotations: r.annotations || [],
+                lineAnnotations: r.lineAnnotations || [],
+                pages: r.pages || [],
+              },
+              processingTime: r.processingTime,
+            });
+            if (r.ocr?.text) setPlagiarismText(r.ocr.text.substring(0, 2000));
+          }
+        } else if (job.status === 'failed') {
+          clearInterval(jobPollRef.current);
+          showError(`OCR thất bại: ${job.error || 'Unknown error'}`);
+        }
+      } catch { /* ignore */ }
+    }, 1500);
+  }
+
+  useEffect(() => () => { if (jobPollRef.current) clearInterval(jobPollRef.current); }, []);
 
   async function handleSummarize() {
     if (!extraction?.extraction?.text) return;
@@ -238,14 +290,55 @@ export default function AiAnalysis() {
                 <Brain size={18} color="var(--primary-indigo)" />
                 <span>Upload & Trích xuất OCR</span>
               </div>
+
+              {/* Mode toggle */}
+              <div className="upload-mode-switch">
+                <button
+                  className={`upload-mode-btn ${uploadMode === 'async' ? 'active' : ''}`}
+                  onClick={() => setUploadMode('async')}
+                >
+                  <Zap size={14} /> Async (Job Queue)
+                  <span className="upload-mode-tag">Khuyến nghị</span>
+                </button>
+                <button
+                  className={`upload-mode-btn ${uploadMode === 'sync' ? 'active' : ''}`}
+                  onClick={() => setUploadMode('sync')}
+                >
+                  <Clock size={14} /> Sync (đợi trực tiếp)
+                </button>
+              </div>
+
               <div className="drop-zone" onClick={() => fileRef.current?.click()}>
                 {uploading ? (
-                  <><Loader2 size={32} className="spin" color="var(--primary-indigo)" /><p className="drop-main">Đang xử lý OCR...</p><p className="drop-sub">10-30 giây tùy kích thước file</p></>
+                  <><Loader2 size={32} className="spin" color="var(--primary-indigo)" /><p className="drop-main">Đang upload...</p><p className="drop-sub">{uploadMode === 'async' ? 'Đẩy file vào MinIO + queue OCR' : 'Đợi OCR hoàn tất'}</p></>
                 ) : (
                   <><FileUp size={32} color="var(--on-surface-muted)" /><p className="drop-main">Kéo thả hoặc click chọn file</p><p className="drop-sub">PDF, PNG, JPG, TIFF - tối đa 50MB</p></>
                 )}
               </div>
               <input ref={fileRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.tiff,.bmp,.txt" onChange={handleUpload} style={{ display: 'none' }} />
+
+              {/* Job progress card */}
+              {activeJob && (
+                <div className="job-progress-card" style={{ borderColor: STATUS_COLOR[activeJob.status] }}>
+                  <div className="job-progress-head">
+                    <div>
+                      <div className="job-progress-id">Job #{activeJob.jobId.substring(0, 12)}...</div>
+                      <span className="job-status-pill" style={{ background: `${STATUS_COLOR[activeJob.status]}18`, color: STATUS_COLOR[activeJob.status] }}>
+                        {activeJob.status === 'processing' && <Loader2 size={11} className="spin" />}
+                        {activeJob.status === 'completed' && <CheckCircle size={11} />}
+                        {activeJob.status === 'failed' && <AlertTriangle size={11} />}
+                        {STATUS_LABEL[activeJob.status]}
+                      </span>
+                    </div>
+                    <div className="job-progress-pct">{activeJob.progress}%</div>
+                  </div>
+                  <div className="job-progress-bar">
+                    <div className="job-progress-fill" style={{ width: `${activeJob.progress}%`, background: STATUS_COLOR[activeJob.status] }} />
+                  </div>
+                  {activeJob.error && <div className="job-progress-err">{activeJob.error}</div>}
+                  {activeJob.status === 'completed' && <div className="job-progress-msg">✓ Hoàn tất! Đang hiển thị kết quả bên dưới...</div>}
+                </div>
+              )}
             </div>
 
             {/* Extraction metadata */}
@@ -799,6 +892,36 @@ const aiStyles = `
   .drop-zone:hover { border-color: var(--primary-indigo); }
   .drop-main { font-weight: 600; margin: 8px 0 4px; }
   .drop-sub { font-size: 0.75rem; color: var(--on-surface-muted); }
+
+  /* Upload mode switch */
+  .upload-mode-switch { display: flex; gap: .35rem; padding: 4px; background: var(--surface-low); border-radius: 10px; margin-bottom: 1rem; }
+  .upload-mode-btn {
+    flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
+    padding: .5rem .75rem; background: transparent; border: none; border-radius: 8px;
+    font-size: .78rem; font-weight: 600; color: var(--on-surface-muted); cursor: pointer;
+    transition: all .15s; position: relative;
+  }
+  .upload-mode-btn:hover { color: var(--on-surface); }
+  .upload-mode-btn.active { background: #fff; color: var(--primary-indigo); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .upload-mode-tag {
+    background: #10b981; color: #fff; font-size: .6rem; font-weight: 700;
+    padding: 1px 6px; border-radius: 100px; margin-left: .25rem;
+  }
+
+  /* Job progress */
+  .job-progress-card {
+    margin-top: 1rem; padding: 1rem 1.15rem;
+    background: var(--surface-low); border: 1.5px solid var(--surface-variant);
+    border-radius: 12px; transition: border-color .3s;
+  }
+  .job-progress-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .65rem; gap: .5rem; }
+  .job-progress-id { font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: .75rem; color: var(--on-surface-muted); margin-bottom: .35rem; }
+  .job-status-pill { display: inline-flex; align-items: center; gap: .3rem; padding: .2rem .6rem; border-radius: 100px; font-size: .72rem; font-weight: 700; }
+  .job-progress-pct { font-size: 1.25rem; font-weight: 800; color: var(--on-surface); font-variant-numeric: tabular-nums; }
+  .job-progress-bar { height: 6px; background: var(--surface-variant); border-radius: 100px; overflow: hidden; }
+  .job-progress-fill { height: 100%; transition: width .4s; border-radius: 100px; }
+  .job-progress-err { margin-top: .5rem; font-size: .78rem; color: #dc2626; }
+  .job-progress-msg { margin-top: .5rem; font-size: .8rem; color: #059669; font-weight: 600; }
 
   .meta-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
   .chip { padding: 3px 8px; background: var(--surface-low); border-radius: 4px; font-size: 0.7rem; font-weight: 600; }

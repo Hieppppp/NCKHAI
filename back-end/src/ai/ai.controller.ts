@@ -7,13 +7,17 @@ import { memoryStorage } from 'multer';
 import * as path from 'path';
 import { AiService } from './ai.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { QueueService } from '../queue/queue.service.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:8000';
 
 @Controller('ai')
 export class AiController {
   constructor(
     private aiService: AiService,
     private prisma: PrismaService,
+    private queue: QueueService,
   ) {}
 
   @Post('upload')
@@ -74,6 +78,69 @@ export class AiController {
         pages: result.pages || [],
       },
       processingTime: result.processingTime,
+    };
+  }
+
+  /** Upload async qua job queue - upload nhanh vào MinIO, OCR chạy nền */
+  @Post('upload-async')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const allowed = ['.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.txt'];
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (allowed.includes(ext)) cb(null, true);
+      else cb(new BadRequestException(`Định dạng ${ext} không được hỗ trợ`), false);
+    },
+  }))
+  async uploadAsync(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser('id') userId: number,
+    @Body('workId') workId?: string,
+  ) {
+    if (!file) throw new BadRequestException('Vui lòng chọn file');
+
+    // 1. Upload vào MinIO (nhanh, không OCR)
+    const formData = new FormData();
+    const blob = new Blob([file.buffer as any], { type: file.mimetype });
+    formData.append('file', blob, file.originalname);
+
+    const uploadResp = await fetch(`${AI_SERVICE_URL}/upload-only`, {
+      method: 'POST',
+      body: formData as any,
+    });
+    if (!uploadResp.ok) {
+      throw new BadRequestException('Upload MinIO thất bại');
+    }
+    const uploaded: any = await uploadResp.json();
+
+    // 2. Tạo FileUpload record (chưa có OCR)
+    const fileRecord = await this.prisma.fileUpload.create({
+      data: {
+        filename: uploaded.objectName,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        path: `minio://${uploaded.objectName}`,
+        category: 'MANUSCRIPT',
+        uploaderId: userId,
+        workId: workId ? parseInt(workId, 10) : null,
+      },
+    });
+
+    // 3. Push OCR job vào queue
+    const job = await this.queue.queueOcr({
+      objectName: uploaded.objectName,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      userId,
+      workId: workId ? parseInt(workId, 10) : undefined,
+    });
+
+    return {
+      message: 'Upload thành công, OCR đang xử lý nền',
+      jobId: job.jobId,
+      file: { id: fileRecord.id, objectName: uploaded.objectName, originalName: file.originalname },
     };
   }
 

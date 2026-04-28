@@ -379,12 +379,13 @@ docker cp nckhai-minio:/data ./minio-backup
 ### AI
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| POST | `/api/ai/upload` | Upload file → OCR → extract (annotations, bbox, pages) |
-| POST | `/api/ai/similarity` | Kiểm tra đạo văn |
-| POST | `/api/ai/chat` | Chat với AI (Ollama) |
+| POST | `/api/ai/upload` | **Sync**: Upload + OCR đồng bộ (block, đợi response) |
+| POST | `/api/ai/upload-async` | **Async**: Upload MinIO + push OCR job → trả jobId ngay |
+| POST | `/api/ai/similarity` | Kiểm tra đạo văn (so sánh corpus, riskLevel, verdict) |
+| POST | `/api/ai/chat` | Chat với AI (Ollama qwen2.5:3b) |
 | POST | `/api/ai/summarize` | Tóm tắt văn bản |
 | GET | `/api/ai/suggest-experts/:workId` | AI đề xuất phản biện |
-| GET | `/api/ai/trends` | Phân tích xu hướng |
+| GET | `/api/ai/trends` | Phân tích xu hướng (overview, top keywords, growth YoY, insights) |
 
 ### Quy đổi Giờ chuẩn NCKH
 | Method | Endpoint | Mô tả |
@@ -423,6 +424,143 @@ docker cp nckhai-minio:/data ./minio-backup
 | POST | `/api/jobs/:id/retry` | Chạy lại job thất bại (Admin) |
 | DELETE | `/api/jobs/:id` | Xóa job record (Admin) |
 | POST | `/api/jobs/admin/clean` | Dọn jobs cũ `{olderThanHours}` (Admin) |
+
+## Job Queue Trigger - Luồng async OCR
+
+Hệ thống có **2 chế độ upload** OCR, người dùng chọn ở tab "Trợ lý AI":
+
+### Sync mode (truyền thống)
+```
+Browser → POST /api/ai/upload (multipart) → AI service /process →
+  [MinIO upload + OCR + extract đồng bộ trong 1 request] →
+  Response chứa toàn bộ kết quả
+```
+- Đợi 10-30 giây tùy file size
+- Browser block trong khi xử lý
+- Phù hợp file nhỏ, demo nhanh
+
+### Async mode (khuyến nghị, qua Job Queue)
+```
+Browser → POST /api/ai/upload-async (multipart) →
+  Backend gọi AI /upload-only (chỉ lưu MinIO, ~1s) →
+  Tạo FileUpload + JobRecord (pending) + push BullMQ queue →
+  Response: { jobId, fileId } (~1s)
+
+Worker (OcrProcessor, concurrency=2):
+  1. Pick job từ Redis queue
+  2. Update JobRecord status=processing, progress=20
+  3. Gọi AI /reprocess?object_name=xxx
+  4. Update JobRecord progress=70 → 100
+  5. Update FileUpload với extractedText, OCR confidence, keywords...
+  6. Mark JobRecord completed + lưu result JSON
+
+Browser polls GET /api/jobs/:id mỗi 1.5s → cập nhật progress bar →
+  status=completed → render kết quả OCR vào UI
+```
+
+**Ưu điểm async**:
+- Browser không block, có thể chuyển tab khác
+- Retry tự động 3 lần (exponential backoff 2s → 4s → 8s)
+- Track lịch sử qua trang `/jobs`
+- Admin có thể retry job failed thủ công, dọn job cũ
+- Concurrency 2 (giới hạn qua `@Processor(QUEUE_NAMES.OCR, { concurrency: 2 })`)
+
+### Test thử end-to-end
+
+```bash
+# 1. Login lấy token
+TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@nckhai.vn","password":"admin123"}' \
+  | python3 -c "import sys,json;print(json.load(sys.stdin)['accessToken'])")
+
+# 2. Upload async
+curl -X POST http://localhost:3000/api/ai/upload-async \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@your-paper.pdf"
+# Response: {"jobId":"1","file":{"id":34,...}}
+
+# 3. Poll job status (1.5s/lần)
+curl http://localhost:3000/api/jobs/1 -H "Authorization: Bearer $TOKEN"
+# {"status":"processing","progress":70,...}
+
+# 4. Khi completed, lấy kết quả từ result hoặc query file
+curl "http://localhost:3000/api/files/34" -H "Authorization: Bearer $TOKEN"
+```
+
+### Trang quản lý
+
+| Trang | URL | Mô tả |
+|-------|-----|-------|
+| **Quản lý tài liệu** | `/files` | Toàn bộ file MinIO + filter + preview + delete |
+| **Quản lý tác vụ** | `/jobs` | Tất cả jobs + stats real-time + retry + cleanup |
+| **Trợ lý AI** | `/ai` | Upload (sync/async toggle) + OCR + plagiarism + trends |
+
+## 5 loại Job Queue trên hệ thống
+
+Hệ thống có **5 queue BullMQ** tách biệt, mỗi queue có processor riêng với concurrency được tinh chỉnh phù hợp:
+
+| Queue | Tên Redis | Concurrency | Processor | Mô tả |
+|-------|-----------|-------------|-----------|-------|
+| **OCR** | `ocr-processing` | 2 | OcrProcessor | OCR Tesseract + extract metadata từ PDF/ảnh |
+| **Tóm tắt AI** | `ai-summarize` | 2 | SummarizeProcessor | Gọi Ollama LLM tóm tắt văn bản |
+| **Vector hóa** | `ai-embedding` | 1 | EmbeddingProcessor | Trích xuất TF-IDF keywords làm vector đại diện |
+| **Gửi email** | `email-notification` | 5 | EmailProcessor | Gửi email thông báo (mock SMTP, sẵn sàng plug nodemailer) |
+| **Tạo báo cáo** | `report-generation` | 1 | ReportProcessor | Render báo cáo PDF (works/finance/research-hours/committee) |
+
+**Mã Job composite**: `<queue-name>_<bullId>` (ví dụ `ai-summarize_1`) — tránh trùng vì BullMQ reset id từng queue.
+
+### Trigger jobs
+
+```typescript
+// Inject QueueService rồi gọi các method:
+queueService.queueOcr({ objectName, originalName, mimeType, userId, workId })
+queueService.queueSummarize({ text, maxWords, userId, fileId })
+queueService.queueEmbedding({ text, userId, workId, fileId })
+queueService.queueEmail({ to, subject, body, template, userId })
+queueService.queueReport({ type: 'works' | 'finance' | 'research-hours' | 'committee', userId })
+```
+
+### Test endpoint cho Admin
+
+```bash
+# Seed all - đẩy 4 test jobs (summarize/embedding/email/report) vào queue
+curl -X POST http://localhost:3000/api/jobs/admin/seed-test \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"type":"all"}'
+
+# Hoặc từng loại: type = ocr | summarize | embedding | email | report | all
+```
+
+### Báo cáo kết quả test (chạy ngày 2026-04-28)
+
+```
+═══════════════════════════════════════════════════════════
+📊 BullMQ STATS
+═══════════════════════════════════════════════════════════
+Total records: 5
+By status: {'completed': 5}
+
+Queue                    Active  Wait  Done  Fail
+────────────────────────────────────────────────────────────
+ocr-processing           0       0     1     0
+ai-summarize             0       0     1     0
+ai-embedding             0       0     1     0
+email-notification       0       0     1     0
+report-generation        0       0     1     0
+```
+
+**Chi tiết kết quả:**
+
+| Queue | Job ID | Status | Kết quả |
+|-------|--------|--------|---------|
+| OCR | `ocr-processing_1` | ✓ completed 100% | Tesseract OCR text + extract metadata |
+| Tóm tắt AI | `ai-summarize_1` | ✓ completed 100% | "Bài báo đề cập đến ứng dụng trí tuệ nhân tạo trong giáo dục đại học, đặc biệt là các phương pháp deep learning, CNN và transformer..." |
+| Vector hóa | `ai-embedding_1` | ✓ completed 100% | 15 keywords trích xuất: `["dụng","học","nhân","đại","bài","trình","gian","sinh"...]` |
+| Gửi email | `email-notification_1` | ✓ completed 100% | sentTo=test-recipient@nckhai.vn, messageId=`<1777347453205.gf450x84vmr@nckhai.vn>` |
+| Tạo báo cáo | `report-generation_1` | ✓ completed 100% | reportType=works, 12 pages, 535 KB, data={total:8, byLevel:[MINISTRY:2, UNIVERSITY:4, STATE:2]} |
+
+**Pass rate: 100%** — tất cả 5 queue xử lý job thành công, JobRecord được lưu đầy đủ vào DB, kết quả trả về đúng schema, BullMQ stats đồng bộ với DB.
 
 ## Dữ liệu persist
 

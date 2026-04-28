@@ -619,7 +619,64 @@ const jmStyles = `
     border: 1px solid var(--surface-variant);
     font-family: 'SF Mono', Monaco, Consolas, monospace;
   }
-  .jm-detail-actions { display: flex; gap: .5rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--surface-variant); margin-top: 1rem; }
+  /* Detail action buttons - chuyên nghiệp */
+  .jm-detail-actions {
+    display: flex; gap: .65rem; justify-content: flex-end;
+    padding: 1.25rem 0 0; margin-top: 1.25rem;
+    border-top: 1px solid var(--surface-variant);
+  }
+  .jm-detail-actions .btn-primary,
+  .jm-detail-actions .btn-danger,
+  .jm-detail-actions .btn-outline {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .6rem 1.15rem; border-radius: 10px;
+    font-size: .85rem; font-weight: 700; cursor: pointer;
+    transition: all .18s cubic-bezier(.4, 0, .2, 1);
+    border: 1.5px solid transparent;
+    letter-spacing: .01em;
+  }
+  .jm-detail-actions .btn-primary {
+    background: var(--signature-gradient);
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(30, 64, 175, .15), 0 0 0 1px rgba(30, 64, 175, .1);
+  }
+  .jm-detail-actions .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px -4px rgba(30, 64, 175, .35), 0 0 0 1px rgba(30, 64, 175, .15);
+  }
+  .jm-detail-actions .btn-primary:active { transform: translateY(0); }
+
+  .jm-detail-actions .btn-danger {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(220, 38, 38, .15), 0 0 0 1px rgba(220, 38, 38, .1);
+  }
+  .jm-detail-actions .btn-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px -4px rgba(220, 38, 38, .35), 0 0 0 1px rgba(220, 38, 38, .15);
+  }
+  .jm-detail-actions .btn-danger:active { transform: translateY(0); }
+
+  .jm-detail-actions .btn-outline {
+    background: #fff;
+    color: var(--on-surface);
+    border-color: var(--surface-variant);
+  }
+  .jm-detail-actions .btn-outline:hover {
+    background: var(--surface-low);
+    border-color: var(--on-surface-variant);
+    color: var(--on-surface);
+  }
+  .jm-detail-actions .btn-outline:active { background: var(--surface-high); }
+
+  .jm-detail-actions button:disabled {
+    opacity: .5; cursor: not-allowed; transform: none !important; box-shadow: none !important;
+  }
+
+  @media (max-width: 640px) {
+    .jm-detail-actions { flex-direction: column-reverse; }
+    .jm-detail-actions button { width: 100%; justify-content: center; }
+  }
 
   @media (max-width: 1024px) {
     .jm-stats { grid-template-columns: repeat(2, 1fr); }

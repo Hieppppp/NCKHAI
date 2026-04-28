@@ -61,4 +61,14 @@ export class QueueController {
   clean(@Body('olderThanHours') hours?: number) {
     return this.svc.cleanOldJobs(hours || 24);
   }
+
+  /** Test endpoint: tạo job thử cho từng loại queue (Admin) */
+  @Post('admin/seed-test')
+  @Roles(Role.ADMIN)
+  async seedTestJobs(
+    @Body('type') type: 'ocr' | 'summarize' | 'embedding' | 'email' | 'report' | 'all',
+    @CurrentUser('id') userId: number,
+  ) {
+    return this.svc.seedTestJobs(type || 'all', userId);
+  }
 }

@@ -28,19 +28,20 @@ export class OcrProcessor extends WorkerHost {
     const { objectName, originalName, workId } = job.data;
     this.logger.log(`[OCR] Processing job ${job.id} - ${originalName}`);
 
-    await this.updateJobRecord(job.id!, 'processing', 0);
+    const jobIdComposite = `${QUEUE_NAMES.OCR}_${job.id!}`;
+    await this.updateJobRecord(jobIdComposite, 'processing', 0);
 
     try {
       // Download file from MinIO → pass to AI service /process
       await job.updateProgress(20);
-      await this.updateJobRecord(job.id!, 'processing', 20);
+      await this.updateJobRecord(jobIdComposite, 'processing', 20);
 
       const response = await fetch(`${AI_SERVICE_URL}/reprocess?object_name=${encodeURIComponent(objectName)}`, {
         method: 'POST',
       });
 
       await job.updateProgress(70);
-      await this.updateJobRecord(job.id!, 'processing', 70);
+      await this.updateJobRecord(jobIdComposite, 'processing', 70);
 
       if (!response.ok) {
         throw new Error(`AI service error: ${response.status}`);
@@ -48,28 +49,31 @@ export class OcrProcessor extends WorkerHost {
 
       const result: any = await response.json();
 
-      // Update FileUpload record with OCR results
-      if (workId) {
-        const files = await this.prisma.fileUpload.findMany({
-          where: { workId, filename: objectName },
+      // Update FileUpload record với kết quả OCR - tìm theo objectName (filename)
+      const files = await this.prisma.fileUpload.findMany({
+        where: { filename: objectName },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      });
+      if (files[0]) {
+        await this.prisma.fileUpload.update({
+          where: { id: files[0].id },
+          data: {
+            extractedText: result.ocr?.text?.substring(0, 50000),
+            extractedTitle: result.extraction?.title,
+            extractedAuthors: result.extraction?.authors,
+            extractedAbstract: result.extraction?.abstract,
+            extractedKeywords: result.extraction?.keywords || [],
+            ocrConfidence: result.ocr?.confidence,
+          },
         });
-        if (files[0]) {
-          await this.prisma.fileUpload.update({
-            where: { id: files[0].id },
-            data: {
-              extractedText: result.ocr?.text?.substring(0, 50000),
-              extractedTitle: result.extraction?.title,
-              extractedAuthors: result.extraction?.authors,
-              extractedAbstract: result.extraction?.abstract,
-              extractedKeywords: result.extraction?.keywords || [],
-              ocrConfidence: result.ocr?.confidence,
-            },
-          });
-        }
+        this.logger.log(`[OCR] Updated FileUpload #${files[0].id} với OCR results`);
+      } else {
+        this.logger.warn(`[OCR] Không tìm thấy FileUpload cho objectName=${objectName}`);
       }
 
       await job.updateProgress(100);
-      await this.updateJobRecord(job.id!, 'completed', 100, result);
+      await this.updateJobRecord(jobIdComposite, 'completed', 100, result);
 
       this.logger.log(`[OCR] Completed job ${job.id}`);
       return {
@@ -81,7 +85,7 @@ export class OcrProcessor extends WorkerHost {
       };
     } catch (error: any) {
       this.logger.error(`[OCR] Failed job ${job.id}: ${error.message}`);
-      await this.updateJobRecord(job.id!, 'failed', job.progress as number, null, error.message);
+      await this.updateJobRecord(jobIdComposite, 'failed', job.progress as number, null, error.message);
       throw error;
     }
   }
