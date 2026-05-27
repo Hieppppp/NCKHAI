@@ -17,7 +17,8 @@ export class LibraryService {
         keywords: dto.keywords || [],
         tags: dto.tags || [],
         category: dto.category,
-        type: dto.type as WorkType,
+        // Thư viện = thông tin khoa học mới; không bắt chọn loại bài báo nữa
+        type: (dto.type as WorkType) || WorkType.RESEARCH_PROJECT,
         level: dto.level as WorkLevel,
         aiScore: dto.aiScore,
         publicationId: dto.publicationId,

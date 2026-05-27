@@ -8,6 +8,7 @@ import {
 import { workService } from '../../services/workService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Role } from '../../types';
+import type { WorksModule } from '../../config/worksModules';
 
 const StatusLabels: Record<string, { label: string; color: string }> = {
   DRAFT: { label: 'Bản nháp', color: '#94a3b8' },
@@ -30,9 +31,10 @@ const TypeLabels: Record<string, string> = {
 
 type ViewMode = 'grid' | 'list';
 
-export default function WorkList() {
+export default function WorkList({ mod }: { mod: WorksModule }) {
   const navigate = useNavigate();
   const { hasRole } = useAuth();
+  const singleType = mod.types.length === 1;
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -46,7 +48,7 @@ export default function WorkList() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = { page: String(page), limit: '12' };
+      const params: Record<string, string> = { page: String(page), limit: '12', category: mod.category };
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
       if (typeFilter) params.type = typeFilter;
@@ -54,7 +56,7 @@ export default function WorkList() {
       setData(await workService.getAll(params));
     } catch { /* ignore */ }
     setLoading(false);
-  }, [page, search, statusFilter, typeFilter, levelFilter]);
+  }, [page, search, statusFilter, typeFilter, levelFilter, mod.category]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -66,11 +68,11 @@ export default function WorkList() {
     <div className="wl">
       <header className="wl-header">
         <div>
-          <h1>Quản lý Công trình Khoa học</h1>
-          <p className="wl-sub">Theo dõi, quản lý và đánh giá các đề tài, bài báo, công trình nghiên cứu</p>
+          <h1>{mod.listTitle}</h1>
+          <p className="wl-sub">{mod.listSubtitle}</p>
         </div>
         {hasRole(Role.ADMIN, Role.LECTURER, Role.STUDENT) && (
-          <button className="btn-create" onClick={() => navigate('/projects/new')}><Plus size={18} /> Đăng ký mới</button>
+          <button className="btn-create" onClick={() => navigate(`${mod.basePath}/new`)}><Plus size={18} /> Đăng ký mới</button>
         )}
       </header>
 
@@ -94,14 +96,18 @@ export default function WorkList() {
             <option value="">Trạng thái</option>
             {Object.entries(StatusLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
-          <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}>
-            <option value="">Loại hình</option>
-            {Object.entries(TypeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-          <select value={levelFilter} onChange={e => { setLevelFilter(e.target.value); setPage(1); }}>
-            <option value="">Cấp độ</option>
-            {Object.entries(LevelLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
+          {!singleType && (
+            <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}>
+              <option value="">Loại hình</option>
+              {mod.types.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          )}
+          {mod.showLevel && (
+            <select value={levelFilter} onChange={e => { setLevelFilter(e.target.value); setPage(1); }}>
+              <option value="">Cấp độ</option>
+              {Object.entries(LevelLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          )}
           {hasFilters && <button className="wl-clear" onClick={() => { setStatusFilter(''); setTypeFilter(''); setLevelFilter(''); setPage(1); }}><X size={14} /> Xóa</button>}
           <span className="wl-result-count">{meta.total} kết quả</span>
         </div>
@@ -110,16 +116,16 @@ export default function WorkList() {
       {loading ? (
         <div className="wl-loading"><Loader2 size={32} className="spin" color="var(--primary-indigo)" /></div>
       ) : works.length === 0 ? (
-        <div className="wl-empty surface-card"><Archive size={48} style={{ opacity: 0.3 }} /><p>Chưa có công trình nào</p></div>
+        <div className="wl-empty surface-card"><Archive size={48} style={{ opacity: 0.3 }} /><p>Chưa có {mod.itemNoun} nào</p></div>
       ) : viewMode === 'list' ? (
         <div className="wl-list">
           {works.map((w: any) => {
             const st = StatusLabels[w.status] || { label: w.status, color: '#94a3b8' };
             return (
-              <div key={w.id} className="surface-card wl-item" onClick={() => navigate(`/projects/${w.id}`)}>
+              <div key={w.id} className="surface-card wl-item" onClick={() => navigate(`${mod.basePath}/${w.id}`)}>
                 <div className="wl-item-left">
                   <div className="wl-badges">
-                    <span className="badge-level" style={{ background: `${LevelColors[w.level] || '#3b82f6'}15`, color: LevelColors[w.level] || '#3b82f6' }}>{LevelLabels[w.level] || w.level}</span>
+                    {mod.showLevel && <span className="badge-level" style={{ background: `${LevelColors[w.level] || '#3b82f6'}15`, color: LevelColors[w.level] || '#3b82f6' }}>{LevelLabels[w.level] || w.level}</span>}
                     <span className="badge-type">{TypeLabels[w.type] || w.type}</span>
                   </div>
                   <h3>{w.title}</h3>
@@ -147,9 +153,11 @@ export default function WorkList() {
           {works.map((w: any) => {
             const st = StatusLabels[w.status] || { label: w.status, color: '#94a3b8' };
             return (
-              <div key={w.id} className="surface-card wl-card" onClick={() => navigate(`/projects/${w.id}`)}>
+              <div key={w.id} className="surface-card wl-card" onClick={() => navigate(`${mod.basePath}/${w.id}`)}>
                 <div className="wl-card-top">
-                  <span className="badge-level sm" style={{ background: `${LevelColors[w.level] || '#3b82f6'}15`, color: LevelColors[w.level] || '#3b82f6' }}>{LevelLabels[w.level] || w.level}</span>
+                  {mod.showLevel
+                    ? <span className="badge-level sm" style={{ background: `${LevelColors[w.level] || '#3b82f6'}15`, color: LevelColors[w.level] || '#3b82f6' }}>{LevelLabels[w.level] || w.level}</span>
+                    : <span className="badge-type">{TypeLabels[w.type] || w.type}</span>}
                   <span className="wl-status sm" style={{ background: `${st.color}15`, color: st.color }}>{st.label}</span>
                 </div>
                 <h3 className="wl-card-title">{w.title}</h3>

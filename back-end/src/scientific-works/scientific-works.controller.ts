@@ -23,19 +23,23 @@ export class ScientificWorksController {
 
   @Get()
   findAll(
+    @CurrentUser('id') requesterId: number,
+    @CurrentUser('role') requesterRole: Role,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('status') status?: string,
     @Query('type') type?: string,
     @Query('level') level?: string,
+    @Query('category') category?: string,
     @Query('userId') userId?: string,
   ) {
     return this.svc.findAll({
       page: page ? +page : undefined,
       limit: limit ? +limit : undefined,
-      search, status, type, level,
+      search, status, type, level, category,
       userId: userId ? +userId : undefined,
+      requesterId, requesterRole,
     });
   }
 
@@ -49,8 +53,12 @@ export class ScientificWorksController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.svc.findOne(id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('id') requesterId: number,
+    @CurrentUser('role') requesterRole: Role,
+  ) {
+    return this.svc.findOne(id, requesterId, requesterRole);
   }
 
   @Get(':id/workflow')

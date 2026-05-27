@@ -1,7 +1,10 @@
 import {
   LayoutDashboard,
   BookOpen,
+  Lightbulb,
+  BookMarked,
   FileText,
+  FileSignature,
   Users,
   Wallet,
   Library,
@@ -10,7 +13,6 @@ import {
   LogOut,
   PlusCircle,
   UserCog,
-  Clock,
   FolderOpen,
   Activity,
 } from 'lucide-react';
@@ -22,21 +24,35 @@ export interface MenuItem {
   icon: any;
   path?: string;
   roles?: Role[];
+  /** Nhãn nhóm hiển thị phía trên mục (để chia khu vực menu) */
+  section?: string;
 }
 
+// Phân quyền chặt: chỉ gán `roles` cho các mục nhạy cảm; mục không có `roles` thì mọi vai trò đều thấy.
+// Mỗi mục đều mang `section` để nhãn nhóm hiển thị đúng kể cả khi vài mục bị ẩn theo vai trò.
 export const mainMenuItems: MenuItem[] = [
-  { key: 'dashboard', name: 'Bảng điều khiển', icon: LayoutDashboard, path: '/dashboard' },
-  { key: 'projects', name: 'Quản lý đề tài', icon: BookOpen, path: '/projects' },
-  { key: 'publications', name: 'Công bố khoa học', icon: FileText, path: '/publications' },
-  { key: 'committees', name: 'Hội đồng chấm điểm', icon: Users, path: '/committees' },
-  { key: 'research-hours', name: 'Giờ chuẩn NCKH', icon: Clock, path: '/research-hours' },
-  { key: 'finance', name: 'Tài chính & Thi đua', icon: Wallet, path: '/finance' },
-  { key: 'library', name: 'Thư viện số', icon: Library, path: '/library' },
-  { key: 'templates', name: 'Mẫu tài liệu', icon: FileText, path: '/templates' },
-  { key: 'files', name: 'Quản lý tài liệu', icon: FolderOpen, path: '/files' },
-  { key: 'jobs', name: 'Quản lý tác vụ', icon: Activity, path: '/jobs' },
-  { key: 'ai-assistant', name: 'Trợ lý AI', icon: Cpu, path: '/ai' },
-  { key: 'user-management', name: 'Quản lý người dùng', icon: UserCog, path: '/admin/users', roles: [Role.ADMIN] },
+  // ── Tổng quan ──
+  { key: 'dashboard', name: 'Bảng điều khiển', icon: LayoutDashboard, path: '/dashboard', section: 'TỔNG QUAN' },
+
+  // ── Nghiệp vụ chính: quản lý các loại công trình ──
+  { key: 'works', name: 'Công trình khoa học', icon: BookOpen, path: '/projects', section: 'QUẢN LÝ CÔNG TRÌNH' },
+  { key: 'patents', name: 'Bằng sáng chế', icon: Lightbulb, path: '/patents', section: 'QUẢN LÝ CÔNG TRÌNH' },
+  { key: 'textbooks', name: 'Giáo trình', icon: BookMarked, path: '/textbooks', section: 'QUẢN LÝ CÔNG TRÌNH' },
+  { key: 'publications', name: 'Công bố khoa học', icon: FileText, path: '/publications', section: 'QUẢN LÝ CÔNG TRÌNH' },
+
+  // ── Tra cứu & hỗ trợ ──
+  { key: 'library', name: 'Thư viện số', icon: Library, path: '/library', section: 'TRA CỨU & TRỢ LÝ' },
+  { key: 'ai-assistant', name: 'Trợ lý AI', icon: Cpu, path: '/ai', section: 'TRA CỨU & TRỢ LÝ' },
+
+  // ── Hội đồng & xét duyệt: Quản trị + Phản biện ──
+  { key: 'committees', name: 'Hội đồng chấm điểm', icon: Users, path: '/committees', roles: [Role.ADMIN, Role.REVIEWER], section: 'HỘI ĐỒNG & XÉT DUYỆT' },
+
+  // ── Quản trị hệ thống: chỉ Quản trị viên ──
+  { key: 'finance', name: 'Tài chính & Thi đua', icon: Wallet, path: '/finance', roles: [Role.ADMIN], section: 'QUẢN TRỊ HỆ THỐNG' },
+  { key: 'templates', name: 'Mẫu tài liệu', icon: FileSignature, path: '/templates', roles: [Role.ADMIN], section: 'QUẢN TRỊ HỆ THỐNG' },
+  { key: 'files', name: 'Kho tài liệu (MinIO)', icon: FolderOpen, path: '/files', roles: [Role.ADMIN], section: 'QUẢN TRỊ HỆ THỐNG' },
+  { key: 'jobs', name: 'Hàng đợi tác vụ', icon: Activity, path: '/jobs', roles: [Role.ADMIN], section: 'QUẢN TRỊ HỆ THỐNG' },
+  { key: 'user-management', name: 'Quản lý người dùng', icon: UserCog, path: '/admin/users', roles: [Role.ADMIN], section: 'QUẢN TRỊ HỆ THỐNG' },
 ];
 
 export const bottomMenuItems: MenuItem[] = [
@@ -45,6 +61,7 @@ export const bottomMenuItems: MenuItem[] = [
 ];
 
 export const actionButton = {
-  name: 'Đăng ký đề tài mới',
+  name: 'Đăng ký công trình mới',
   icon: PlusCircle,
+  path: '/projects/new',
 };

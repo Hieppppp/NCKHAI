@@ -26,7 +26,8 @@ export class CreateLibraryDocumentDto {
   category?: string;
 
   @IsString()
-  type: string;
+  @IsOptional()
+  type?: string;
 
   @IsString()
   @IsOptional()

@@ -41,22 +41,30 @@ export const Sidebar = () => {
 
       <nav className="nav-section">
         <ul className="nav-list">
-          {visibleMenuItems.map((item) => (
-            <li
-              key={item.key}
-              className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-              onClick={() => handleSelect(item.path)}
-            >
-              <item.icon size={20} />
-              <span className="nav-name">{item.name}</span>
-              {location.pathname === item.path && <div className="active-pill" />}
-            </li>
-          ))}
+          {visibleMenuItems.map((item, idx) => {
+            const prevSection = idx > 0 ? visibleMenuItems[idx - 1].section : undefined;
+            const showSection = item.section && item.section !== prevSection;
+            const isActive = location.pathname === item.path ||
+              (item.path !== '/' && item.path !== undefined && location.pathname.startsWith(item.path + '/'));
+            return (
+              <div key={item.key}>
+                {showSection && <li className="nav-section-label">{item.section}</li>}
+                <li
+                  className={`nav-item ${isActive ? 'active' : ''}`}
+                  onClick={() => handleSelect(item.path)}
+                >
+                  <item.icon size={20} />
+                  <span className="nav-name">{item.name}</span>
+                  {isActive && <div className="active-pill" />}
+                </li>
+              </div>
+            );
+          })}
         </ul>
       </nav>
 
       <div className="action-section">
-        <button className="btn-signature">
+        <button className="btn-signature" onClick={() => navigate(actionButton.path)}>
           <actionButton.icon size={18} />
           {actionButton.name}
         </button>
@@ -134,6 +142,17 @@ export const Sidebar = () => {
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
+        }
+
+        .nav-section-label {
+          list-style: none;
+          font-size: 0.625rem;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--on-surface-muted);
+          opacity: 0.7;
+          padding: 0.75rem 1rem 0.25rem;
         }
 
         .nav-item {

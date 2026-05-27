@@ -14,15 +14,15 @@ import AiAnalysis from './pages/ai/AiAnalysis';
 import LibraryPage from './pages/LibraryPage';
 import FinancePage from './pages/FinancePage';
 import ProfilePage from './pages/ProfilePage';
-import ResearchHoursPage from './pages/ResearchHoursPage';
 import SettingsPage from './pages/SettingsPage';
 import DocumentTemplatePage from './pages/DocumentTemplatePage';
 import FileManagerPage from './pages/FileManagerPage';
 import JobManagerPage from './pages/JobManagerPage';
+import { WORKS_MODULES } from './config/worksModules';
 import { Role } from './types';
 
-function Wrapped({ children }: { children: React.ReactNode }) {
-  return <ProtectedRoute><AppLayout>{children}</AppLayout></ProtectedRoute>;
+function Wrapped({ children, roles }: { children: React.ReactNode; roles?: Role[] }) {
+  return <ProtectedRoute roles={roles}><AppLayout>{children}</AppLayout></ProtectedRoute>;
 }
 
 function App() {
@@ -36,50 +36,43 @@ function App() {
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<Wrapped><DashboardPage /></Wrapped>} />
 
-      {/* Scientific Works */}
-      <Route path="/projects" element={<Wrapped><WorkList /></Wrapped>} />
-      <Route path="/projects/new" element={<Wrapped><WorkCreate /></Wrapped>} />
-      <Route path="/projects/:id" element={<Wrapped><WorkDetail /></Wrapped>} />
+      {/* Công trình khoa học */}
+      <Route path="/projects" element={<Wrapped><WorkList mod={WORKS_MODULES.works} /></Wrapped>} />
+      <Route path="/projects/new" element={<Wrapped><WorkCreate mod={WORKS_MODULES.works} /></Wrapped>} />
+      <Route path="/projects/:id" element={<Wrapped><WorkDetail mod={WORKS_MODULES.works} /></Wrapped>} />
+
+      {/* Bằng sáng chế */}
+      <Route path="/patents" element={<Wrapped><WorkList mod={WORKS_MODULES.patents} /></Wrapped>} />
+      <Route path="/patents/new" element={<Wrapped><WorkCreate mod={WORKS_MODULES.patents} /></Wrapped>} />
+      <Route path="/patents/:id" element={<Wrapped><WorkDetail mod={WORKS_MODULES.patents} /></Wrapped>} />
+
+      {/* Giáo trình */}
+      <Route path="/textbooks" element={<Wrapped><WorkList mod={WORKS_MODULES.textbooks} /></Wrapped>} />
+      <Route path="/textbooks/new" element={<Wrapped><WorkCreate mod={WORKS_MODULES.textbooks} /></Wrapped>} />
+      <Route path="/textbooks/:id" element={<Wrapped><WorkDetail mod={WORKS_MODULES.textbooks} /></Wrapped>} />
 
       {/* AI */}
       <Route path="/ai" element={<Wrapped><AiAnalysis /></Wrapped>} />
 
-      {/* Committees */}
-      <Route path="/committees" element={<Wrapped><CommitteeEvaluation /></Wrapped>} />
-
-      {/* Publications */}
+      {/* Công bố khoa học */}
       <Route path="/publications" element={<Wrapped><Publications /></Wrapped>} />
 
-      {/* Finance */}
-      <Route path="/finance" element={<Wrapped><FinancePage /></Wrapped>} />
-
-      {/* Library */}
+      {/* Thư viện số */}
       <Route path="/library" element={<Wrapped><LibraryPage /></Wrapped>} />
 
-      {/* Research Hours */}
-      <Route path="/research-hours" element={<Wrapped><ResearchHoursPage /></Wrapped>} />
+      {/* Hội đồng chấm điểm — Quản trị + Phản biện */}
+      <Route path="/committees" element={<Wrapped roles={[Role.ADMIN, Role.REVIEWER]}><CommitteeEvaluation /></Wrapped>} />
 
-      {/* Document Templates */}
-      <Route path="/templates" element={<Wrapped><DocumentTemplatePage /></Wrapped>} />
+      {/* Khu vực quản trị — chỉ Quản trị viên */}
+      <Route path="/finance" element={<Wrapped roles={[Role.ADMIN]}><FinancePage /></Wrapped>} />
+      <Route path="/templates" element={<Wrapped roles={[Role.ADMIN]}><DocumentTemplatePage /></Wrapped>} />
+      <Route path="/files" element={<Wrapped roles={[Role.ADMIN]}><FileManagerPage /></Wrapped>} />
+      <Route path="/jobs" element={<Wrapped roles={[Role.ADMIN]}><JobManagerPage /></Wrapped>} />
+      <Route path="/admin/users" element={<Wrapped roles={[Role.ADMIN]}><UserManagement /></Wrapped>} />
 
-      {/* File Manager */}
-      <Route path="/files" element={<Wrapped><FileManagerPage /></Wrapped>} />
-
-      {/* Job Manager */}
-      <Route path="/jobs" element={<Wrapped><JobManagerPage /></Wrapped>} />
-
-      {/* Settings */}
+      {/* Cài đặt & Hồ sơ */}
       <Route path="/settings" element={<Wrapped><SettingsPage /></Wrapped>} />
-
-      {/* Profile */}
       <Route path="/profile" element={<Wrapped><ProfilePage /></Wrapped>} />
-
-      {/* Admin */}
-      <Route path="/admin/users" element={
-        <ProtectedRoute roles={[Role.ADMIN]}>
-          <AppLayout><UserManagement /></AppLayout>
-        </ProtectedRoute>
-      } />
 
       {/* Catch all */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

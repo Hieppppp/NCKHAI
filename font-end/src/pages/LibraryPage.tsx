@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  Search, Filter, FileText, BookOpen, Eye, Download, ChevronLeft, ChevronRight,
+  Search, FileText, BookOpen, Eye, Download, ChevronLeft, ChevronRight,
   Sparkles, MessageCircle, Send, X, Tag, Plus, ArrowLeft, Calendar, User,
-  Loader2, ExternalLink, Copy, Check, Library, Layers,
+  Loader2, ExternalLink, Copy, Check, Library,
 } from 'lucide-react';
 import { Modal } from '../components/common/Modal';
 import { libraryService } from '../services/libraryService';
@@ -21,10 +21,6 @@ interface LibDoc {
   work?: { id: number; title: string };
 }
 
-const TYPE_LABELS: Record<string, string> = { JOURNAL_ARTICLE: 'Bài báo', CONFERENCE_PAPER: 'Hội nghị', RESEARCH_PROJECT: 'Đề tài NC', PATENT: 'Bằng sáng chế', TEXTBOOK: 'Giáo trình', THESIS: 'Luận văn' };
-const LEVEL_LABELS: Record<string, string> = { UNIVERSITY: 'Cấp Trường', MINISTRY: 'Cấp Bộ', STATE: 'Cấp Nhà nước' };
-const LEVEL_COLORS: Record<string, string> = { UNIVERSITY: '#3b82f6', MINISTRY: '#8b5cf6', STATE: '#dc2626' };
-
 export default function LibraryPage() {
   const { hasRole } = useAuth();
   const isLecturerOrAdmin = hasRole(Role.ADMIN, Role.LECTURER);
@@ -33,9 +29,6 @@ export default function LibraryPage() {
   const [docs, setDocs] = useState<LibDoc[]>([]);
   const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [levelFilter, setLevelFilter] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
 
@@ -52,13 +45,13 @@ export default function LibraryPage() {
   const chatBodyRef = useRef<HTMLDivElement>(null);
 
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ title: '', authors: '', abstract: '', keywords: '', tags: '', type: 'JOURNAL_ARTICLE', level: 'UNIVERSITY' });
+  const [createForm, setCreateForm] = useState({ title: '', authors: '', abstract: '', keywords: '', tags: '' });
   const [submitting, setSubmitting] = useState(false);
 
   const fetchDocs = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await libraryService.findAll({ page, limit: 10, search: search || undefined, type: typeFilter || undefined, level: levelFilter || undefined });
+      const res = await libraryService.findAll({ page, limit: 10, search: search || undefined });
       setDocs(res.data); setMeta(res.meta);
     } catch { /* ignore */ }
     setLoading(false);
@@ -131,19 +124,17 @@ export default function LibraryPage() {
         title: createForm.title, authors: createForm.authors, abstract: createForm.abstract || undefined,
         keywords: createForm.keywords ? createForm.keywords.split(',').map(k => k.trim()) : [],
         tags: createForm.tags ? createForm.tags.split(',').map(t => t.trim()) : [],
-        type: createForm.type, level: createForm.level || undefined,
       });
       setShowCreate(false);
-      setCreateForm({ title: '', authors: '', abstract: '', keywords: '', tags: '', type: 'JOURNAL_ARTICLE', level: 'UNIVERSITY' });
-      showSuccess('Thêm tài liệu thành công');
+      setCreateForm({ title: '', authors: '', abstract: '', keywords: '', tags: '' });
+      showSuccess('Đăng thông tin khoa học thành công');
       fetchDocs();
-    } catch (err: any) { showError(err.response?.data?.message || 'Tạo tài liệu thất bại'); }
+    } catch (err: any) { showError(err.response?.data?.message || 'Đăng tin thất bại'); }
     setSubmitting(false);
   };
 
   const totalViews = docs.reduce((s, d) => s + d.viewCount, 0);
   const totalDownloads = docs.reduce((s, d) => s + d.downloadCount, 0);
-  const hasFilters = typeFilter || levelFilter;
 
   // ─── DETAIL VIEW ───
   if (detail) {
@@ -154,8 +145,7 @@ export default function LibraryPage() {
         <div className="lib-detail-grid">
           <article className="surface-card lib-detail-main">
             <div className="lib-detail-badges">
-              {detail.level && <span className="lib-level" style={{ background: LEVEL_COLORS[detail.level] || '#3b82f6' }}>{LEVEL_LABELS[detail.level]}</span>}
-              <span className="lib-type-chip">{TYPE_LABELS[detail.type] || detail.type}</span>
+              <span className="lib-type-chip"><Sparkles size={11} /> Tin khoa học</span>
             </div>
             <h1 className="lib-detail-title">{detail.title}</h1>
             <p className="lib-detail-authors"><User size={14} /> {detail.user?.name || detail.authors}</p>
@@ -240,14 +230,13 @@ export default function LibraryPage() {
       <section className="lib-hero">
         <div className="lib-hero-content">
           <div className="lib-hero-text">
-            <h1>Thư viện số Thông minh</h1>
-            <p>Truy cập hơn {stats?.total || 0} tài liệu nghiên cứu. Tìm kiếm, trích dẫn, tải về và phân tích bằng AI.</p>
+            <h1>Thư viện số — Tin khoa học</h1>
+            <p>Nơi đăng tải và tra cứu các thông tin khoa học mới: thông báo, tin nghiên cứu, tài liệu chia sẻ. Tìm kiếm và hỏi đáp bằng AI.</p>
           </div>
           <div className="lib-hero-stats">
-            <div className="lib-hstat"><Library size={16} /><span>{stats?.total || 0}</span><small>Tài liệu</small></div>
+            <div className="lib-hstat"><Library size={16} /><span>{stats?.total || 0}</span><small>Bản tin</small></div>
             <div className="lib-hstat"><Eye size={16} /><span>{totalViews}</span><small>Lượt xem</small></div>
             <div className="lib-hstat"><Download size={16} /><span>{totalDownloads}</span><small>Lượt tải</small></div>
-            <div className="lib-hstat"><Layers size={16} /><span>{Object.keys(TYPE_LABELS).length}</span><small>Loại</small></div>
           </div>
         </div>
         <div className="lib-hero-search">
@@ -259,27 +248,9 @@ export default function LibraryPage() {
 
       {/* Toolbar */}
       <div className="lib-toolbar">
-        <button className={`lib-filter-btn ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(!showFilters)}>
-          <Filter size={15} /> Bộ lọc {hasFilters && <span className="lib-badge" />}
-        </button>
-        {isLecturerOrAdmin && <button className="lib-add-btn" onClick={() => setShowCreate(true)}><Plus size={15} /> Thêm tài liệu</button>}
-        <span className="lib-result-info">{meta.total} tài liệu</span>
+        {isLecturerOrAdmin && <button className="lib-add-btn" onClick={() => setShowCreate(true)}><Plus size={15} /> Đăng tin khoa học</button>}
+        <span className="lib-result-info">{meta.total} bản tin</span>
       </div>
-
-      {showFilters && (
-        <div className="lib-filters">
-          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-            <option value="">Loại tài liệu</option>
-            {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-          <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)}>
-            <option value="">Cấp độ</option>
-            {Object.entries(LEVEL_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-          <button className="lib-apply" onClick={() => fetchDocs(1)}>Áp dụng</button>
-          {hasFilters && <button className="lib-clear" onClick={() => { setTypeFilter(''); setLevelFilter(''); fetchDocs(1); }}><X size={12} /> Xóa</button>}
-        </div>
-      )}
 
       <div className="lib-layout">
         {/* Documents */}
@@ -293,8 +264,7 @@ export default function LibraryPage() {
               {docs.map(doc => (
                 <article key={doc.id} className="surface-card lib-card" onClick={() => openDetail(doc.id)}>
                   <div className="lib-card-top">
-                    {doc.level && <span className="lib-level" style={{ background: LEVEL_COLORS[doc.level] || '#3b82f6' }}>{LEVEL_LABELS[doc.level]}</span>}
-                    <span className="lib-type-chip">{TYPE_LABELS[doc.type] || doc.type}</span>
+                    <span className="lib-type-chip"><Sparkles size={11} /> Tin khoa học</span>
                     <div className="lib-card-stats">
                       <span><Eye size={12} /> {doc.viewCount}</span>
                       <span><Download size={12} /> {doc.downloadCount}</span>
@@ -349,8 +319,8 @@ export default function LibraryPage() {
           <div className="surface-card lib-side-card">
             <h4>Thống kê thư viện</h4>
             <div className="lib-side-rows">
-              <div className="lib-srow"><Library size={13} /><span>Tổng tài liệu</span><strong>{stats?.total || 0}</strong></div>
-              <div className="lib-srow"><Layers size={13} /><span>Số loại</span><strong>{stats?.byType?.length || 0}</strong></div>
+              <div className="lib-srow"><Library size={13} /><span>Tổng bản tin</span><strong>{stats?.total || 0}</strong></div>
+              <div className="lib-srow"><Eye size={13} /><span>Lượt xem</span><strong>{totalViews}</strong></div>
             </div>
           </div>
         </aside>
@@ -377,29 +347,19 @@ export default function LibraryPage() {
       )}
 
       {/* Create Modal */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Thêm tài liệu mới" subtitle="Bổ sung tài liệu vào thư viện số" width={660}
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Đăng thông tin khoa học mới" subtitle="Chia sẻ tin tức, thông báo, tài liệu khoa học lên thư viện số" width={660}
         footer={<>
           <button className="g-btn secondary" onClick={() => setShowCreate(false)}>Hủy</button>
           <button className="g-btn primary" onClick={handleCreate} disabled={submitting || !createForm.title || !createForm.authors}>
-            {submitting ? <Loader2 size={14} className="lib-spin" /> : <Plus size={14} />} Thêm tài liệu
+            {submitting ? <Loader2 size={14} className="lib-spin" /> : <Plus size={14} />} Đăng tin
           </button>
         </>}>
         <div className="g-form-grid">
-          <div className="g-field full"><label>Tiêu đề *</label><input value={createForm.title} onChange={e => setCreateForm({ ...createForm, title: e.target.value })} placeholder="Tên tài liệu / bài báo" /></div>
-          <div className="g-field"><label>Tác giả *</label><input value={createForm.authors} onChange={e => setCreateForm({ ...createForm, authors: e.target.value })} /></div>
-          <div className="g-field"><label>Loại</label>
-            <select value={createForm.type} onChange={e => setCreateForm({ ...createForm, type: e.target.value })}>
-              {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
-          <div className="g-field"><label>Cấp độ</label>
-            <select value={createForm.level} onChange={e => setCreateForm({ ...createForm, level: e.target.value })}>
-              {Object.entries(LEVEL_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
+          <div className="g-field full"><label>Tiêu đề *</label><input value={createForm.title} onChange={e => setCreateForm({ ...createForm, title: e.target.value })} placeholder="VD: Thông báo hội thảo khoa học cấp Trường 2026" /></div>
+          <div className="g-field full"><label>Tác giả / Nguồn *</label><input value={createForm.authors} onChange={e => setCreateForm({ ...createForm, authors: e.target.value })} placeholder="VD: Phòng QLKH" /></div>
+          <div className="g-field full"><label>Nội dung</label><textarea value={createForm.abstract} onChange={e => setCreateForm({ ...createForm, abstract: e.target.value })} rows={4} placeholder="Tóm tắt nội dung thông tin khoa học..." /></div>
           <div className="g-field"><label>Từ khóa (phẩy)</label><input value={createForm.keywords} onChange={e => setCreateForm({ ...createForm, keywords: e.target.value })} placeholder="AI, NLP, OCR" /></div>
-          <div className="g-field full"><label>Tóm tắt</label><textarea value={createForm.abstract} onChange={e => setCreateForm({ ...createForm, abstract: e.target.value })} rows={3} /></div>
-          <div className="g-field full"><label>Tags (phẩy)</label><input value={createForm.tags} onChange={e => setCreateForm({ ...createForm, tags: e.target.value })} placeholder="deep-learning, healthcare" /></div>
+          <div className="g-field"><label>Tags (phẩy)</label><input value={createForm.tags} onChange={e => setCreateForm({ ...createForm, tags: e.target.value })} placeholder="hội thảo, thông báo" /></div>
         </div>
       </Modal>
 
