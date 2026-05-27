@@ -2,38 +2,28 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Plus, FileText, Filter, ChevronLeft, ChevronRight,
-  Loader2, Award, Clock, Archive, LayoutGrid, List,
-  Eye, Calendar, X,
+  Loader2, Award, Archive, LayoutGrid, List,
+  Eye, Calendar, X, Trash2,
 } from 'lucide-react';
 import { workService } from '../../services/workService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../components/common/Toast';
 import { Role } from '../../types';
 import type { WorksModule } from '../../config/worksModules';
-
-const StatusLabels: Record<string, { label: string; color: string }> = {
-  DRAFT: { label: 'Bản nháp', color: '#94a3b8' },
-  SUBMITTED: { label: 'Đã nộp', color: '#3b82f6' },
-  OUTLINE_REVIEW: { label: 'Duyệt đề cương', color: '#8b5cf6' },
-  PROPOSAL_REVIEW: { label: 'Duyệt thuyết minh', color: '#6366f1' },
-  IN_PROGRESS: { label: 'Đang thực hiện', color: '#f59e0b' },
-  REVIEW: { label: 'Phản biện', color: '#ec4899' },
-  REVISION: { label: 'Chỉnh sửa', color: '#f97316' },
-  ACCEPTED: { label: 'Nghiệm thu', color: '#10b981' },
-  REJECTED: { label: 'Từ chối', color: '#ef4444' },
-  ARCHIVED: { label: 'Lưu trữ', color: '#64748b' },
-};
-const LevelLabels: Record<string, string> = { UNIVERSITY: 'Cấp Trường', MINISTRY: 'Cấp Bộ', STATE: 'Cấp Nhà nước' };
-const LevelColors: Record<string, string> = { UNIVERSITY: '#3b82f6', MINISTRY: '#8b5cf6', STATE: '#dc2626' };
-const TypeLabels: Record<string, string> = {
-  JOURNAL_ARTICLE: 'Bài báo', CONFERENCE_PAPER: 'Hội nghị', RESEARCH_PROJECT: 'Đề tài NCKH',
-  PATENT: 'Bằng sáng chế', TEXTBOOK: 'Giáo trình', THESIS: 'Luận văn',
-};
+import {
+  WORK_STATUS_LABELS as StatusLabels,
+  WORK_MAIN_STATUSES,
+  WORK_LEVEL_LABELS as LevelLabels,
+  WORK_LEVEL_COLORS as LevelColors,
+  WORK_TYPE_LABELS as TypeLabels,
+} from '../../config/worksModules';
 
 type ViewMode = 'grid' | 'list';
 
 export default function WorkList({ mod }: { mod: WorksModule }) {
   const navigate = useNavigate();
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
+  const { success: showSuccess, error: showError, confirm: showConfirm } = useToast();
   const singleType = mod.types.length === 1;
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -63,6 +53,15 @@ export default function WorkList({ mod }: { mod: WorksModule }) {
   const works = data?.data || [];
   const meta = data?.meta || { total: 0, page: 1, totalPages: 1 };
   const hasFilters = statusFilter || typeFilter || levelFilter;
+
+  const canDelete = (w: any) => w.userId === user?.id || hasRole(Role.ADMIN);
+  const handleDelete = (w: any, e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+    showConfirm('Xóa công trình', `Xóa "${w.title}"? Hành động này không thể hoàn tác.`, async () => {
+      try { await workService.remove(w.id); showSuccess('Đã xóa công trình'); load(); }
+      catch { showError('Xóa thất bại'); }
+    }, { confirmLabel: 'Xóa', danger: true });
+  };
 
   return (
     <div className="wl">
@@ -94,7 +93,7 @@ export default function WorkList({ mod }: { mod: WorksModule }) {
         <div className="wl-filters">
           <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
             <option value="">Trạng thái</option>
-            {Object.entries(StatusLabels).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            {WORK_MAIN_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
           {!singleType && (
             <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}>
@@ -143,6 +142,7 @@ export default function WorkList({ mod }: { mod: WorksModule }) {
                     {w.aiScore && <span className="ai"><Award size={12} /> {w.aiScore}</span>}
                   </div>
                   <span className="wl-date"><Calendar size={12} /> {new Date(w.createdAt).toLocaleDateString('vi-VN')}</span>
+                  {canDelete(w) && <button className="wl-del" title="Xóa công trình" onClick={(e) => handleDelete(w, e)}><Trash2 size={14} /></button>}
                 </div>
               </div>
             );
@@ -166,6 +166,7 @@ export default function WorkList({ mod }: { mod: WorksModule }) {
                   <span className="badge-type">{TypeLabels[w.type] || w.type}</span>
                   {w.aiScore && <span className="ai"><Award size={11} /> {w.aiScore}</span>}
                   <span className="wl-date ml"><Calendar size={11} /> {new Date(w.createdAt).toLocaleDateString('vi-VN')}</span>
+                  {canDelete(w) && <button className="wl-del" title="Xóa công trình" onClick={(e) => handleDelete(w, e)}><Trash2 size={12} /></button>}
                 </div>
               </div>
             );
@@ -227,6 +228,8 @@ export default function WorkList({ mod }: { mod: WorksModule }) {
         .wl-meta span{display:flex;align-items:center;gap:3px}
         .ai{color:var(--primary-violet);font-weight:700;display:flex;align-items:center;gap:3px}
         .wl-date{font-size:.7rem;color:var(--on-surface-variant);display:flex;align-items:center;gap:4px}
+        .wl-del{border:none;background:transparent;color:var(--on-surface-muted);cursor:pointer;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+        .wl-del:hover{background:#fee2e2;color:#dc2626}
         .wl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem}
         .wl-card{padding:1.25rem!important;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:8px}
         .wl-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.06)}

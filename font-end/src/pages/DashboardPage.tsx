@@ -11,16 +11,16 @@ import { notificationService } from '../services/notificationService';
 import { useAuth } from '../contexts/AuthContext';
 import { RoleLabels, Role } from '../types';
 
+// Đồng bộ theo bộ trạng thái rút gọn 5 nhóm (giống màn Công trình khoa học)
 const StatusLabels: Record<string, string> = {
-  DRAFT: 'Bản nháp', SUBMITTED: 'Đã nộp', IN_PROGRESS: 'Đang thực hiện',
-  REVIEW: 'Phản biện', ACCEPTED: 'Nghiệm thu', ARCHIVED: 'Lưu trữ',
-  OUTLINE_REVIEW: 'Duyệt đề cương', PROPOSAL_REVIEW: 'Duyệt thuyết minh',
-  REVISION: 'Chỉnh sửa', REJECTED: 'Từ chối',
+  DRAFT: 'Bản nháp', SUBMITTED: 'Chờ duyệt', OUTLINE_REVIEW: 'Chờ duyệt', PROPOSAL_REVIEW: 'Chờ duyệt',
+  IN_PROGRESS: 'Đang thực hiện', REVIEW: 'Đang thực hiện', REVISION: 'Đang thực hiện',
+  ACCEPTED: 'Đã nghiệm thu', ARCHIVED: 'Đã nghiệm thu', REJECTED: 'Từ chối',
 };
 const StatusColors: Record<string, string> = {
-  DRAFT: '#94a3b8', SUBMITTED: '#3b82f6', IN_PROGRESS: '#f59e0b',
-  REVIEW: '#ec4899', ACCEPTED: '#10b981', ARCHIVED: '#64748b',
-  OUTLINE_REVIEW: '#8b5cf6', PROPOSAL_REVIEW: '#6366f1', REVISION: '#f97316', REJECTED: '#ef4444',
+  DRAFT: '#94a3b8', SUBMITTED: '#3b82f6', OUTLINE_REVIEW: '#3b82f6', PROPOSAL_REVIEW: '#3b82f6',
+  IN_PROGRESS: '#f59e0b', REVIEW: '#f59e0b', REVISION: '#f59e0b',
+  ACCEPTED: '#10b981', ARCHIVED: '#10b981', REJECTED: '#ef4444',
 };
 const LevelLabels: Record<string, string> = { UNIVERSITY: 'Cấp Trường', MINISTRY: 'Cấp Bộ', STATE: 'Cấp Nhà nước' };
 const LevelColors: Record<string, string> = { UNIVERSITY: '#3b82f6', MINISTRY: '#8b5cf6', STATE: '#dc2626' };
