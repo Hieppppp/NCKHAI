@@ -10,6 +10,8 @@ import DashboardPage from './pages/DashboardPage';
 import WorkList from './pages/works/WorkList';
 import WorkDetail from './pages/works/WorkDetail';
 import WorkCreate from './pages/works/WorkCreate';
+import PatentsPage from './pages/patents/PatentsPage';
+import TextbooksPage from './pages/textbooks/TextbooksPage';
 import AiAnalysis from './pages/ai/AiAnalysis';
 import LibraryPage from './pages/LibraryPage';
 import FinancePage from './pages/FinancePage';
@@ -41,15 +43,11 @@ function App() {
       <Route path="/projects/new" element={<Wrapped><WorkCreate mod={WORKS_MODULES.works} /></Wrapped>} />
       <Route path="/projects/:id" element={<Wrapped><WorkDetail mod={WORKS_MODULES.works} /></Wrapped>} />
 
-      {/* Bằng sáng chế */}
-      <Route path="/patents" element={<Wrapped><WorkList mod={WORKS_MODULES.patents} /></Wrapped>} />
-      <Route path="/patents/new" element={<Wrapped><WorkCreate mod={WORKS_MODULES.patents} /></Wrapped>} />
-      <Route path="/patents/:id" element={<Wrapped><WorkDetail mod={WORKS_MODULES.patents} /></Wrapped>} />
+      {/* Bằng sáng chế — bảng + module riêng */}
+      <Route path="/patents" element={<Wrapped><PatentsPage /></Wrapped>} />
 
-      {/* Giáo trình */}
-      <Route path="/textbooks" element={<Wrapped><WorkList mod={WORKS_MODULES.textbooks} /></Wrapped>} />
-      <Route path="/textbooks/new" element={<Wrapped><WorkCreate mod={WORKS_MODULES.textbooks} /></Wrapped>} />
-      <Route path="/textbooks/:id" element={<Wrapped><WorkDetail mod={WORKS_MODULES.textbooks} /></Wrapped>} />
+      {/* Giáo trình — bảng + module riêng */}
+      <Route path="/textbooks" element={<Wrapped><TextbooksPage /></Wrapped>} />
 
       {/* AI */}
       <Route path="/ai" element={<Wrapped><AiAnalysis /></Wrapped>} />

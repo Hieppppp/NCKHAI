@@ -90,6 +90,38 @@ enum RewardStatus {
   AWARDED
 }
 
+// Bằng sáng chế
+enum PatentType {
+  INVENTION          // Sáng chế
+  UTILITY_SOLUTION   // Giải pháp hữu ích
+  INDUSTRIAL_DESIGN  // Kiểu dáng công nghiệp
+}
+
+enum PatentStatus {
+  DRAFT       // Bản nháp
+  FILED       // Đã nộp đơn
+  EXAMINING   // Đang thẩm định
+  GRANTED     // Đã cấp bằng (công khai)
+  REJECTED    // Từ chối
+}
+
+// Giáo trình / tài liệu giảng dạy
+enum TextbookType {
+  TEXTBOOK    // Giáo trình
+  LECTURE     // Bài giảng
+  REFERENCE   // Tài liệu tham khảo
+  MONOGRAPH   // Sách chuyên khảo
+}
+
+enum TextbookStatus {
+  DRAFT       // Bản nháp
+  SUBMITTED   // Đã nộp
+  REVIEWING   // Đang thẩm định
+  APPROVED    // Đã nghiệm thu / phê duyệt (công khai)
+  PUBLISHED   // Đã xuất bản (công khai)
+  REJECTED    // Từ chối
+}
+
 // ─── User ────────────────────────────────────────────────
 
 model User {
@@ -106,6 +138,8 @@ model User {
   updatedAt    DateTime @updatedAt
 
   scientificWorks  ScientificWork[]
+  patents          Patent[]
+  textbooks        Textbook[]
   committeeMembers CommitteeMember[]
   reviews          Review[]
   notifications    Notification[]
@@ -461,6 +495,64 @@ model ResearchHours {
   updatedAt          DateTime @updatedAt
 
   @@unique([userId, academicYear])
+}
+
+// ─── Patent (Bằng sáng chế / Sở hữu trí tuệ) ───────────
+
+model Patent {
+  id          Int          @id @default(autoincrement())
+  title       String       // Tên sáng chế / giải pháp
+  inventors   String       // Tác giả sáng chế (đồng tác giả)
+  owner       String?      // Chủ sở hữu / đơn vị chủ quản
+  abstract    String?      // Mô tả tóm tắt
+  patentType  PatentType   @default(INVENTION)
+  applicationNo String?    // Số đơn
+  patentNo    String?      // Số bằng
+  issuingAuthority String? @default("Cục Sở hữu trí tuệ") // Đơn vị cấp
+  ipcClass    String?      // Phân loại IPC
+  field       String?      // Lĩnh vực kỹ thuật
+  keywords    String[]     @default([])
+  filingDate  DateTime?    // Ngày nộp đơn
+  grantDate   DateTime?    // Ngày cấp bằng
+  status      PatentStatus @default(DRAFT)
+
+  userId      Int
+  user        User         @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status])
+  @@index([userId])
+}
+
+// ─── Textbook (Giáo trình / Tài liệu giảng dạy) ────────
+
+model Textbook {
+  id          Int            @id @default(autoincrement())
+  title       String         // Tên giáo trình
+  authors     String         // Chủ biên / tác giả
+  abstract    String?        // Mô tả nội dung
+  materialType TextbookType  @default(TEXTBOOK)
+  publisher   String?        // Nhà xuất bản
+  isbn        String?        // Mã ISBN
+  publishYear Int?           // Năm xuất bản
+  edition     String?        // Lần xuất bản / tái bản
+  pages       Int?           // Số trang
+  subject     String?        // Môn học / học phần
+  field       String?        // Ngành / chuyên ngành
+  approvalLevel WorkLevel    @default(UNIVERSITY) // Cấp phê duyệt
+  keywords    String[]       @default([])
+  status      TextbookStatus @default(DRAFT)
+
+  userId      Int
+  user        User           @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status])
+  @@index([userId])
 }
 
 // ─── System Config (Cấu hình hệ thống) ────────────────

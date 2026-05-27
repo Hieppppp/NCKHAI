@@ -121,10 +121,8 @@ export class ScientificWorksService {
     if (query.level) where.level = query.level;
     if (query.userId) where.userId = query.userId;
 
-    // Lọc theo nhóm màn quản lý (công trình KH / bằng sáng chế / giáo trình)
-    if (query.category === 'patent') where.type = WorkType.PATENT;
-    else if (query.category === 'textbook') where.type = WorkType.TEXTBOOK;
-    else if (query.category === 'scientific') where.type = { notIn: NON_SCIENTIFIC_TYPES };
+    // Màn Công trình KH loại trừ bằng sáng chế & giáo trình (đã có module/bảng riêng)
+    if (query.category === 'scientific') where.type = { notIn: NON_SCIENTIFIC_TYPES };
     // type cụ thể (dropdown) ghi đè nhóm
     if (query.type) where.type = query.type;
 

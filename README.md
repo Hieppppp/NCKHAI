@@ -4,7 +4,7 @@
 
 ## 🆕 Cập nhật mới nhất
 
-- **Quản lý công trình tách thành 3 màn riêng**: Công trình khoa học (`/projects`), Bằng sáng chế (`/patents`), Giáo trình (`/textbooks`) — dùng chung API `/works`, lọc theo `?category=scientific|patent|textbook`. Mỗi màn đều cho đăng ký / sửa / tạo bản nháp và chỉ hiển thị đúng nhóm của nó.
+- **3 nghiệp vụ tách bảng & module riêng**: Công trình khoa học (`/projects` → bảng `ScientificWork`), Bằng sáng chế (`/patents` → bảng `Patent`), Giáo trình (`/textbooks` → bảng `Textbook`). Mỗi loại có trường chuyên biệt (sáng chế: số đơn/số bằng, đơn vị cấp, ngày cấp, IPC; giáo trình: NXB, ISBN, năm XB, số trang, môn học), trạng thái riêng, trang riêng. Đều cho đăng ký / sửa / tạo bản nháp.
 - **Quyền xem theo trạng thái duyệt**: chưa duyệt → chỉ người tạo + ADMIN/REVIEWER xem; đã duyệt (ACCEPTED/ARCHIVED) → mọi người đều xem được.
 - **Gỡ bỏ "Giờ chuẩn NCKH"** (menu, route `/research-hours`, module backend). API `/api/research-hours/*` nay trả 404.
 - **Thư viện số** rút gọn thành nơi đăng "thông tin khoa học mới" — bỏ chọn loại bài báo / cấp độ khi đăng.
@@ -204,12 +204,11 @@ docker cp nckhai-minio:/data ./minio-backup
 - Phân bố trạng thái (bar chart), bảng công trình gần đây
 - Sidebar: cấp đề tài, loại hình, thông báo mới, gợi ý AI
 
-### 2. Quản lý Công trình Khoa học (+ Bằng sáng chế, Giáo trình)
-- **3 màn dùng chung khung trang**, tách theo `?category=`:
-  - **Công trình khoa học** (`/projects`): Đề tài NCKH, Bài báo, Bài hội nghị, Luận văn
-  - **Bằng sáng chế** (`/patents`): trường riêng *Đơn vị cấp bằng*, *Số đơn / Số bằng*
-  - **Giáo trình** (`/textbooks`): trường riêng *Nhà xuất bản*, *ISBN*
-- Đăng ký mới / sửa / tạo bản nháp (CRUD đầy đủ), mỗi màn chỉ hiển thị đúng nhóm của nó
+### 2. Quản lý Công trình Khoa học · Bằng sáng chế · Giáo trình (3 bảng riêng)
+- **Công trình khoa học** (`/projects`, bảng `ScientificWork`): Đề tài NCKH, Bài báo, Bài hội nghị, Luận văn — kèm workflow xét duyệt, file đính kèm, AI đề xuất phản biện
+- **Bằng sáng chế** (`/patents`, bảng `Patent`): loại đơn (Sáng chế / Giải pháp hữu ích / Kiểu dáng CN), số đơn, số bằng, đơn vị cấp, IPC, ngày nộp/cấp; trạng thái DRAFT → FILED → EXAMINING → GRANTED / REJECTED
+- **Giáo trình** (`/textbooks`, bảng `Textbook`): loại (Giáo trình / Bài giảng / Tham khảo / Chuyên khảo), NXB, ISBN, năm XB, lần XB, số trang, môn học, cấp phê duyệt; trạng thái DRAFT → SUBMITTED → REVIEWING → APPROVED → PUBLISHED / REJECTED
+- Đăng ký mới / sửa / tạo bản nháp (CRUD đầy đủ); mỗi loại có trang & form chuyên biệt
 - Toggle List/Grid view, search, bộ lọc (Trạng thái, Loại hình, Cấp độ)
 - Chi tiết: thông tin, workflow xét duyệt, AI đề xuất phản biện, nhận xét, file đính kèm
 - Quy trình xét duyệt tự động theo cấp (Trường / Bộ / Nhà nước)
@@ -346,8 +345,10 @@ docker cp nckhai-minio:/data ./minio-backup
 | `Budget` | Ngân sách theo khoa/năm |
 | `BudgetTransaction` | Giao dịch giải ngân/phân bổ |
 | `Reward` | Khen thưởng |
+| `Patent` | Bằng sáng chế / sở hữu trí tuệ (bảng riêng) |
+| `Textbook` | Giáo trình / tài liệu giảng dạy (bảng riêng) |
 | `JournalRanking` | Danh mục tạp chí (Scopus, HĐGSNN, trong nước) |
-| `ResearchHours` | Giờ chuẩn NCKH theo năm học |
+| `ResearchHours` | ⚠️ Bảng cũ của tính năng Giờ chuẩn (đã gỡ, bảng còn lại nhưng không dùng) |
 
 ## API Endpoints
 
@@ -359,13 +360,15 @@ docker cp nckhai-minio:/data ./minio-backup
 | GET | `/api/auth/profile` | Thông tin user + _count stats |
 | PATCH | `/api/auth/profile` | Cập nhật profile |
 
-### Công trình khoa học / Bằng sáng chế / Giáo trình (chung API)
+### Công trình khoa học / Bằng sáng chế / Giáo trình (3 API riêng)
+
+Cả 3 đều áp dụng **quyền xem theo trạng thái duyệt** (chưa duyệt → chủ sở hữu + ADMIN/REVIEWER; đã duyệt → mọi người) và **đổi trạng thái chỉ ADMIN/REVIEWER**.
+
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| GET | `/api/works?category=scientific\|patent\|textbook` | Danh sách theo nhóm màn (search, filter, paginate). Áp dụng **quyền xem theo trạng thái duyệt** |
-| POST | `/api/works` | Đăng ký mới (type quyết định thuộc màn nào: PATENT / TEXTBOOK / còn lại = công trình KH) |
-| GET | `/api/works/:id` | Chi tiết + workflow + reviews (chặn nếu chưa duyệt và không phải chủ/ADMIN/REVIEWER) |
-| PATCH | `/api/works/:id` | Cập nhật / đổi trạng thái (đổi trạng thái: ADMIN/REVIEWER) |
+| GET/POST | `/api/works`, `/api/works/:id` | Công trình KH (`ScientificWork`) + workflow, file, reviews. `GET ?category=scientific` loại trừ sáng chế/giáo trình |
+| GET/POST/PATCH/DELETE | `/api/patents`, `/api/patents/:id` | Bằng sáng chế (`Patent`). Lọc `?status=&patentType=` |
+| GET/POST/PATCH/DELETE | `/api/textbooks`, `/api/textbooks/:id` | Giáo trình (`Textbook`). Lọc `?status=&materialType=` |
 
 ### AI
 | Method | Endpoint | Mô tả |
@@ -574,6 +577,8 @@ NCKHAI/
 │   │   ├── auth/              # JWT, guards, decorators
 │   │   ├── users/             # User CRUD (Admin)
 │   │   ├── scientific-works/  # Công trình CRUD + workflow
+│   │   ├── patents/           # Bằng sáng chế (bảng Patent)
+│   │   ├── textbooks/         # Giáo trình (bảng Textbook)
 │   │   ├── ai/                # Proxy to Python AI service
 │   │   ├── committees/        # Hội đồng + chấm điểm
 │   │   ├── publications/      # Công bố khoa học
