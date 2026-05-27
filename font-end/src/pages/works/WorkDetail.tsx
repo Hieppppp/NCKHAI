@@ -11,21 +11,21 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/common/Toast';
 import { Role } from '../../types';
 import type { WorksModule } from '../../config/worksModules';
+import {
+  WORK_STATUS_LABELS, WORK_MAIN_STATUSES, WORK_LEVEL_LABELS, WORK_TYPE_LABELS,
+} from '../../config/worksModules';
 
-const StatusColors: Record<string, string> = {
-  DRAFT: '#94a3b8', SUBMITTED: '#3b82f6', OUTLINE_REVIEW: '#3b82f6',
-  PROPOSAL_REVIEW: '#6366f1', IN_PROGRESS: '#f59e0b', REVIEW: '#ec4899',
-  REVISION: '#f97316', ACCEPTED: '#10b981', REJECTED: '#ef4444', ARCHIVED: '#64748b',
-};
-
+// Nhãn danh mục hồ sơ (đủ để hiển thị dữ liệu cũ)
 const CATEGORIES: Record<string, string> = {
-  MANUSCRIPT: 'Bài báo / Công trình',
   PROPOSAL: 'Đề cương / Thuyết minh',
   REPORT: 'Báo cáo',
+  CERTIFICATE: 'Minh chứng / Nghiệm thu',
+  ATTACHMENT: 'Tài liệu khác',
+  MANUSCRIPT: 'Bản thảo',
   REVIEW_FORM: 'Phiếu đánh giá',
-  CERTIFICATE: 'Chứng nhận',
-  ATTACHMENT: 'Tài liệu đính kèm',
 };
+// Danh mục cho phép chọn khi đính kèm hồ sơ đề tài (gọn, đúng nghiệp vụ)
+const UPLOAD_CATEGORIES = ['PROPOSAL', 'REPORT', 'CERTIFICATE', 'ATTACHMENT'];
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -50,7 +50,7 @@ export default function WorkDetail({ mod }: { mod: WorksModule }) {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('MANUSCRIPT');
+  const [selectedCategory, setSelectedCategory] = useState('PROPOSAL');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -115,11 +115,22 @@ export default function WorkDetail({ mod }: { mod: WorksModule }) {
     }, { confirmLabel: 'Xóa', danger: true });
   };
 
+  const handleDeleteWork = () => {
+    showConfirm('Xóa công trình', `Xóa "${work.title}"? Hành động này không thể hoàn tác.`, async () => {
+      try {
+        await workService.remove(work.id);
+        showSuccess('Đã xóa công trình');
+        navigate(mod.basePath);
+      } catch { showError('Xóa thất bại'); }
+    }, { confirmLabel: 'Xóa', danger: true });
+  };
+
   if (loading) return <div className="wd-loading"><Loader2 size={36} className="wd-spin" color="var(--primary-indigo)" /></div>;
   if (!work) return <div className="wd-empty">Không tìm thấy công trình</div>;
 
-  const stColor = StatusColors[work.status] || '#94a3b8';
+  const st = WORK_STATUS_LABELS[work.status] || { label: work.status, color: '#94a3b8' };
   const canUpload = work.userId === user?.id || hasRole(Role.ADMIN, Role.LECTURER);
+  const canDeleteWork = work.userId === user?.id || hasRole(Role.ADMIN);
 
   return (
     <div className="wd">
@@ -130,14 +141,17 @@ export default function WorkDetail({ mod }: { mod: WorksModule }) {
         <div className="wd-header-top">
           <div className="wd-header-info">
             <div className="wd-badges">
-              <span className="wd-badge level">{work.level}</span>
-              <span className="wd-badge type">{work.type}</span>
+              <span className="wd-badge level">{WORK_LEVEL_LABELS[work.level] || work.level}</span>
+              <span className="wd-badge type">{WORK_TYPE_LABELS[work.type] || work.type}</span>
             </div>
             <h1>{work.title}</h1>
             <p className="wd-authors">{work.authors}</p>
             {work.user && <p className="wd-owner">Đăng ký bởi: {work.user.name} — {work.user.department || ''}</p>}
           </div>
-          <span className="wd-status-pill" style={{ background: `${stColor}15`, color: stColor }}>{work.status}</span>
+          <div className="wd-header-side">
+            <span className="wd-status-pill" style={{ background: `${st.color}15`, color: st.color }}>{st.label}</span>
+            {canDeleteWork && <button className="wd-del-btn" onClick={handleDeleteWork}><Trash2 size={14} /> Xóa công trình</button>}
+          </div>
         </div>
 
         {work.abstract && (
@@ -171,7 +185,7 @@ export default function WorkDetail({ mod }: { mod: WorksModule }) {
               {canUpload && (
                 <div className="wd-upload-wrap">
                   <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="wd-cat-select">
-                    {Object.entries(CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {UPLOAD_CATEGORIES.map(k => <option key={k} value={k}>{CATEGORIES[k]}</option>)}
                   </select>
                   <button className="wd-btn primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                     {uploading ? <Loader2 size={14} className="wd-spin" /> : <Upload size={14} />}
@@ -187,7 +201,7 @@ export default function WorkDetail({ mod }: { mod: WorksModule }) {
               <div className="wd-file-empty">
                 <FileIcon size={40} style={{ opacity: .2 }} />
                 <p>Chưa có tài liệu nào</p>
-                {canUpload && <p className="wd-hint">Click "Upload file" để thêm bài báo, đề cương, báo cáo...</p>}
+                {canUpload && <p className="wd-hint">Đính kèm đề cương, báo cáo, minh chứng nghiệm thu...</p>}
               </div>
             ) : (
               <div className="wd-file-list">
@@ -207,7 +221,6 @@ export default function WorkDetail({ mod }: { mod: WorksModule }) {
                           <span>{f.uploader?.name}</span>
                           <span>•</span>
                           <span>{new Date(f.createdAt).toLocaleDateString('vi-VN')}</span>
-                          {f.ocrConfidence && <><span>•</span><span className="wd-ocr">OCR: {f.ocrConfidence.toFixed(0)}%</span></>}
                         </div>
                       </div>
                       <div className="wd-file-actions">
@@ -259,9 +272,10 @@ export default function WorkDetail({ mod }: { mod: WorksModule }) {
                     showSuccess('Đã cập nhật trạng thái');
                   } catch { showError('Cập nhật thất bại'); }
                 }}>
-                  {['DRAFT', 'SUBMITTED', 'OUTLINE_REVIEW', 'PROPOSAL_REVIEW', 'IN_PROGRESS', 'REVIEW', 'REVISION', 'ACCEPTED', 'REJECTED', 'ARCHIVED'].map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
+                  {!WORK_MAIN_STATUSES.some((s) => s.value === work.status) && (
+                    <option value={work.status}>{(WORK_STATUS_LABELS[work.status]?.label) || work.status} (hiện tại)</option>
+                  )}
+                  {WORK_MAIN_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
             )}
@@ -324,6 +338,9 @@ export default function WorkDetail({ mod }: { mod: WorksModule }) {
         .wd-authors{font-size:.9rem;color:var(--on-surface);margin-bottom:.25rem}
         .wd-owner{font-size:.75rem;color:var(--on-surface-muted)}
         .wd-status-pill{padding:6px 14px;border-radius:8px;font-size:.75rem;font-weight:800;white-space:nowrap}
+        .wd-header-side{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex-shrink:0}
+        .wd-del-btn{display:inline-flex;align-items:center;gap:5px;border:1.5px solid #fecaca;background:#fff;color:#dc2626;padding:6px 12px;border-radius:8px;font-weight:700;font-size:.75rem;cursor:pointer;font-family:inherit;transition:all .15s}
+        .wd-del-btn:hover{background:#fee2e2}
 
         .wd-abstract{margin-top:1rem;padding:1rem;background:var(--surface-low);border-radius:10px}
         .wd-abstract h3{font-size:.7rem;font-weight:800;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem}

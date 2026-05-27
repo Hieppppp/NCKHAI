@@ -31,16 +31,24 @@ export interface JobStats {
 
 export const STATUS_LABEL: Record<string, string> = {
   pending: 'Đang chờ',
+  waiting: 'Đang chờ',
   processing: 'Đang xử lý',
+  active: 'Đang xử lý',
   completed: 'Hoàn thành',
   failed: 'Thất bại',
+  delayed: 'Tạm hoãn',
+  paused: 'Tạm dừng',
 };
 
 export const STATUS_COLOR: Record<string, string> = {
   pending: '#f59e0b',
+  waiting: '#f59e0b',
   processing: '#2563eb',
+  active: '#2563eb',
   completed: '#10b981',
   failed: '#dc2626',
+  delayed: '#8b5cf6',
+  paused: '#64748b',
 };
 
 export const QUEUE_LABEL: Record<string, string> = {

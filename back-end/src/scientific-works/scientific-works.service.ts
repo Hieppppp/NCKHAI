@@ -38,8 +38,9 @@ const WORKFLOW_TEMPLATES: Record<string, { name: string; status: WorkStatus }[]>
 // Trạng thái coi như "đã duyệt" → mọi người đều xem được
 const PUBLIC_STATUSES: WorkStatus[] = [WorkStatus.ACCEPTED, WorkStatus.ARCHIVED];
 
-// Các loại công trình KH (loại trừ bằng sáng chế & giáo trình - có màn riêng)
-const NON_SCIENTIFIC_TYPES: WorkType[] = [WorkType.PATENT, WorkType.TEXTBOOK];
+// Công trình khoa học = Đề tài NCKH + Luận văn (Bài báo/Hội nghị thuộc màn Công bố;
+// Bằng sáng chế & Giáo trình có module riêng)
+const SCIENTIFIC_TYPES: WorkType[] = [WorkType.RESEARCH_PROJECT, WorkType.THESIS];
 
 @Injectable()
 export class ScientificWorksService {
@@ -121,8 +122,8 @@ export class ScientificWorksService {
     if (query.level) where.level = query.level;
     if (query.userId) where.userId = query.userId;
 
-    // Màn Công trình KH loại trừ bằng sáng chế & giáo trình (đã có module/bảng riêng)
-    if (query.category === 'scientific') where.type = { notIn: NON_SCIENTIFIC_TYPES };
+    // Màn Công trình KH chỉ gồm Đề tài NCKH + Luận văn
+    if (query.category === 'scientific') where.type = { in: SCIENTIFIC_TYPES };
     // type cụ thể (dropdown) ghi đè nhóm
     if (query.type) where.type = query.type;
 
@@ -280,7 +281,7 @@ export class ScientificWorksService {
     const work = await this.prisma.scientificWork.findUnique({ where: { id: workId } });
     if (!work) throw new NotFoundException(`Công trình #${workId} không tồn tại`);
 
-    // Upload to MinIO qua AI service
+    // Đính kèm hồ sơ đề tài: chỉ lưu MinIO, KHÔNG chạy OCR (OCR thuộc màn Trợ lý AI riêng)
     const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:8000';
     const boundary = '----WorkFile' + Date.now();
     const parts: Buffer[] = [];
@@ -289,32 +290,26 @@ export class ScientificWorksService {
     parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
     const body = Buffer.concat(parts);
 
-    const response = await fetch(`${AI_SERVICE_URL}/process`, {
+    const response = await fetch(`${AI_SERVICE_URL}/upload-only`, {
       method: 'POST',
       headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
       body,
     });
 
-    if (!response.ok) throw new Error('Upload lên MinIO thất bại');
+    if (!response.ok) throw new Error('Tải hồ sơ lên thất bại');
     const result: any = await response.json();
 
-    // Chỉ lưu path + metadata vào DB
+    // Chỉ lưu path + thông tin file vào DB
     const record = await this.prisma.fileUpload.create({
       data: {
-        filename: result.file.objectName,
+        filename: result.objectName,
         originalName,
         mimeType,
         size,
-        path: `minio://${result.file.objectName}`,
-        category: (category as any) || 'MANUSCRIPT',
+        path: `minio://${result.objectName}`,
+        category: (category as any) || 'ATTACHMENT',
         uploaderId: userId,
         workId,
-        extractedText: result.ocr?.text?.substring(0, 50000),
-        extractedTitle: result.extraction?.title,
-        extractedAuthors: result.extraction?.authors,
-        extractedAbstract: result.extraction?.abstract,
-        extractedKeywords: result.extraction?.keywords || [],
-        ocrConfidence: result.ocr?.confidence,
       },
       include: { uploader: { select: { id: true, name: true } } },
     });

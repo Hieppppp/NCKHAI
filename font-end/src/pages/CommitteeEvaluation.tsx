@@ -7,6 +7,7 @@ import { ProgressBar } from '../components/common/ProgressBar';
 import { Modal } from '../components/common/Modal';
 import { committeeService } from '../services/committeeService';
 import { workService } from '../services/workService';
+import { WORK_STATUS_LABELS, WORK_LEVEL_LABELS } from '../config/worksModules';
 import { userService } from '../services/userService';
 import { aiService } from '../services/aiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -109,7 +110,7 @@ export const CommitteeEvaluation = () => {
           <div className="ce-main">
             {/* Project summary */}
             <div className="surface-card ce-project">
-              <div className="ce-proj-visual"><div className="ce-proj-overlay"><small>LĨNH VỰC</small><strong>{selected.work.level || 'Nghiên cứu'}</strong></div></div>
+              <div className="ce-proj-visual"><div className="ce-proj-overlay"><small>CẤP ĐỀ TÀI</small><strong>{WORK_LEVEL_LABELS[selected.work.level || ''] || 'Cấp Trường'}</strong></div></div>
               <div className="ce-proj-info">
                 <h2>{selected.work.title}</h2>
                 {selected.work.abstract && <p className="ce-proj-abs">{selected.work.abstract}</p>}
@@ -117,7 +118,7 @@ export const CommitteeEvaluation = () => {
                   <div><small>TÁC GIẢ</small><strong>{selected.work.authors || '—'}</strong></div>
                   <div><small>NGÀY HỌP</small><strong>{selected.meetingDate ? new Date(selected.meetingDate).toLocaleDateString('vi-VN') : 'Chưa xác định'}</strong></div>
                   <div><small>ĐỊA ĐIỂM</small><strong>{selected.location || 'Chưa xác định'}</strong></div>
-                  <div><small>TRẠNG THÁI</small><strong>{selected.work.status || '—'}</strong></div>
+                  <div><small>TRẠNG THÁI</small><strong>{WORK_STATUS_LABELS[selected.work.status || '']?.label || '—'}</strong></div>
                 </div>
               </div>
             </div>
