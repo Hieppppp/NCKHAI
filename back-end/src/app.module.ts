@@ -13,7 +13,6 @@ import { DashboardModule } from './dashboard/dashboard.module.js';
 import { PublicationsModule } from './publications/publications.module.js';
 import { LibraryModule } from './library/library.module.js';
 import { FinanceModule } from './finance/finance.module.js';
-import { ResearchHoursModule } from './research-hours/research-hours.module.js';
 import { SettingsModule } from './settings/settings.module.js';
 import { TemplatesModule } from './templates/templates.module.js';
 import { QueueModule } from './queue/queue.module.js';
@@ -34,7 +33,6 @@ import { RolesGuard } from './auth/guards/roles.guard.js';
     PublicationsModule,
     LibraryModule,
     FinanceModule,
-    ResearchHoursModule,
     SettingsModule,
     TemplatesModule,
     QueueModule,

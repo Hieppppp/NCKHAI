@@ -1,6 +1,14 @@
 # NCKH AI - Hệ thống Quản lý Công trình Khoa học cho Trường Đại học
 
-> Đề tài: **Xây dựng phần mềm quản lý công trình khoa học cho trường đại học**, tích hợp AI hỗ trợ OCR, kiểm tra đạo văn, đề xuất phản biện, quy đổi giờ chuẩn NCKH.
+> Đề tài: **Xây dựng phần mềm quản lý công trình khoa học cho trường đại học**, tích hợp AI hỗ trợ OCR, kiểm tra đạo văn, đề xuất phản biện.
+
+## 🆕 Cập nhật mới nhất
+
+- **Quản lý công trình tách thành 3 màn riêng**: Công trình khoa học (`/projects`), Bằng sáng chế (`/patents`), Giáo trình (`/textbooks`) — dùng chung API `/works`, lọc theo `?category=scientific|patent|textbook`. Mỗi màn đều cho đăng ký / sửa / tạo bản nháp và chỉ hiển thị đúng nhóm của nó.
+- **Quyền xem theo trạng thái duyệt**: chưa duyệt → chỉ người tạo + ADMIN/REVIEWER xem; đã duyệt (ACCEPTED/ARCHIVED) → mọi người đều xem được.
+- **Gỡ bỏ "Giờ chuẩn NCKH"** (menu, route `/research-hours`, module backend). API `/api/research-hours/*` nay trả 404.
+- **Thư viện số** rút gọn thành nơi đăng "thông tin khoa học mới" — bỏ chọn loại bài báo / cấp độ khi đăng.
+- **Phân quyền menu chặt**, chia 5 nhóm: Tổng quan · Quản lý công trình · Tra cứu & Trợ lý · Hội đồng & Xét duyệt · Quản trị hệ thống.
 
 ## Kiến trúc hệ thống
 
@@ -196,12 +204,17 @@ docker cp nckhai-minio:/data ./minio-backup
 - Phân bố trạng thái (bar chart), bảng công trình gần đây
 - Sidebar: cấp đề tài, loại hình, thông báo mới, gợi ý AI
 
-### 2. Quản lý Đề tài NCKH
-- Đăng ký đề tài mới (CRUD đầy đủ)
-- Toggle List/Grid view, search, bộ lọc 3 dropdown (Trạng thái, Loại hình, Cấp độ)
-- Chi tiết đề tài: thông tin, workflow xét duyệt, AI đề xuất phản biện, nhận xét, file đính kèm
+### 2. Quản lý Công trình Khoa học (+ Bằng sáng chế, Giáo trình)
+- **3 màn dùng chung khung trang**, tách theo `?category=`:
+  - **Công trình khoa học** (`/projects`): Đề tài NCKH, Bài báo, Bài hội nghị, Luận văn
+  - **Bằng sáng chế** (`/patents`): trường riêng *Đơn vị cấp bằng*, *Số đơn / Số bằng*
+  - **Giáo trình** (`/textbooks`): trường riêng *Nhà xuất bản*, *ISBN*
+- Đăng ký mới / sửa / tạo bản nháp (CRUD đầy đủ), mỗi màn chỉ hiển thị đúng nhóm của nó
+- Toggle List/Grid view, search, bộ lọc (Trạng thái, Loại hình, Cấp độ)
+- Chi tiết: thông tin, workflow xét duyệt, AI đề xuất phản biện, nhận xét, file đính kèm
 - Quy trình xét duyệt tự động theo cấp (Trường / Bộ / Nhà nước)
-- Admin chuyển trạng thái: DRAFT → SUBMITTED → IN_PROGRESS → REVIEW → ACCEPTED
+- Admin/Reviewer chuyển trạng thái: DRAFT → SUBMITTED → IN_PROGRESS → REVIEW → ACCEPTED
+- **Quyền xem**: chưa duyệt chỉ người tạo + ADMIN/REVIEWER thấy; đã duyệt thì mọi người xem được
 
 ### 3. Công bố Khoa học
 - 4 chế độ xem: List, Upload, Detail, Edit
@@ -221,40 +234,9 @@ docker cp nckhai-minio:/data ./minio-backup
 - AI gợi ý chuyên gia phản biện dựa trên keyword matching
 - Tiến độ hội đồng: danh sách thành viên + trạng thái đã chấm
 
-### 5. Quy đổi Giờ chuẩn NCKH (Tính năng đặc biệt)
+### 5. (Đã gỡ bỏ) Quy đổi Giờ chuẩn NCKH
 
-> Giải quyết "nỗi khổ quyết toán giờ NCKH" - giảm 90% thời gian đối soát thủ công
-
-**3 Tab chức năng:**
-
-| Tab | Chức năng |
-|-----|-----------|
-| **Giờ chuẩn của tôi** | Ring chart %, 4 stats, trạng thái ĐẠT/THIẾU, chi tiết điểm từng nguồn |
-| **Tổng hợp toàn trường** (Admin) | Thống kê, bảng theo Khoa, ranking xếp hạng giảng viên |
-| **Danh mục tạp chí** | Search/filter 15+ tạp chí Scopus/HĐGSNN, Quartile, Impact Factor |
-
-**Hệ số quy đổi theo Hội đồng Giáo sư Nhà nước:**
-
-| Nguồn điểm | Hệ số |
-|-------------|-------|
-| Bài báo Scopus Q1 | 2.0 điểm |
-| Bài báo Scopus Q2 | 1.5 điểm |
-| Bài báo Scopus Q3 | 1.0 điểm |
-| Bài báo Scopus Q4 | 0.75 điểm |
-| Tạp chí HĐGSNN | 1.0 điểm |
-| Tạp chí trong nước | 0.5 điểm |
-| Đề tài cấp Nhà nước (CN) | 100 điểm |
-| Đề tài cấp Bộ (CN) | 50 điểm |
-| Đề tài cấp Trường (CN) | 25 điểm |
-| Phản biện khoa học | 2 điểm/lần |
-
-**Giá trị thực tiễn:**
-
-| Đối tượng | Giá trị |
-|-----------|---------|
-| **Giảng viên** | Biết ngay đạt bao nhiêu điểm, thiếu bao nhiêu để bổ sung |
-| **Phòng QLKH** | Tự động tính, không cần lật từng tờ giấy đối chiếu Q1/Q2 |
-| **Ban giám hiệu** | Bảng xếp hạng, thống kê theo Khoa, dữ liệu cho kiểm định |
+> ⚠️ Tính năng "Quy đổi Giờ chuẩn NCKH" đã được **loại bỏ** khỏi hệ thống: menu, route `/research-hours`, module backend và trang frontend. API `/api/research-hours/*` nay trả về **404**.
 
 ### 6. Tài chính & Thi đua (đổi tên từ "Kinh phí & Khen thưởng")
 - Hero banner + progress ring % giải ngân
@@ -265,15 +247,14 @@ docker cp nckhai-minio:/data ./minio-backup
 - Dropdown chọn ngân sách, đề tài, người nhận (không nhập ID)
 - Tình trạng xử lý: Chờ duyệt / Đã duyệt / Hoàn thành
 
-### 7. Thư viện số Thông minh
-- Hero banner + search embedded + stats (tổng tài liệu, lượt xem, lượt tải)
-- Lọc theo loại tài liệu, cấp độ
-- Card tài liệu: level badge, type chip, abstract, tags, AI score, lượt xem/tải
-- **Download tài liệu thực**: presigned URL từ MinIO
-- **Xem trước PDF**: iframe preview trong detail view
-- Chi tiết: DOI link, ISSN, BibTeX copy 1 click
-- AI Chat widget: trợ lý tìm kiếm tài liệu
-- Thêm tài liệu mới (Lecturer/Admin)
+### 7. Thư viện số — Tin khoa học (đã rút gọn)
+- Nơi **đăng & tra cứu thông tin khoa học mới**: tin tức, thông báo, tài liệu chia sẻ
+- Form đăng tin tối giản: Tiêu đề / Tác giả - Nguồn / Nội dung / Từ khóa / Tags
+- **Bỏ việc chọn loại bài báo & cấp độ** khi đăng (so với bản cũ)
+- Hero banner + search + stats (bản tin, lượt xem, lượt tải)
+- **Download tài liệu thực**: presigned URL từ MinIO; **Xem trước PDF** trong detail view
+- BibTeX copy 1 click, AI Chat widget hỗ trợ tìm kiếm
+- Đăng tin mới: Lecturer/Admin
 - Sidebar: từ khóa phổ biến, thống kê
 
 ### 8. Trợ lý AI (4 Tab)
@@ -333,10 +314,20 @@ docker cp nckhai-minio:/data ./minio-backup
 
 | Vai trò | Quyền |
 |---------|-------|
-| **ADMIN** | Toàn quyền + quản lý users + ngân sách + khen thưởng + tổng hợp giờ chuẩn |
-| **REVIEWER** | Xem + đánh giá + chấm điểm hội đồng |
-| **LECTURER** | Đăng ký đề tài + upload + công bố + thêm thư viện + xem giờ chuẩn |
-| **STUDENT** | Đăng ký đề tài + upload + xem (mặc định khi đăng ký) |
+| **ADMIN** | Toàn quyền + quản lý users + ngân sách + khen thưởng + duyệt công trình + khu Quản trị hệ thống |
+| **REVIEWER** | Xem + đánh giá + chấm điểm hội đồng + đổi trạng thái duyệt |
+| **LECTURER** | Đăng ký công trình/sáng chế/giáo trình + upload + công bố + đăng tin thư viện |
+| **STUDENT** | Đăng ký công trình/sáng chế/giáo trình + upload + xem (mặc định khi đăng ký) |
+
+**Phân quyền menu (5 nhóm):**
+
+| Nhóm | Menu | Vai trò thấy |
+|------|------|--------------|
+| TỔNG QUAN | Bảng điều khiển | Mọi vai trò |
+| QUẢN LÝ CÔNG TRÌNH | Công trình khoa học, Bằng sáng chế, Giáo trình, Công bố khoa học | Mọi vai trò |
+| TRA CỨU & TRỢ LÝ | Thư viện số, Trợ lý AI | Mọi vai trò |
+| HỘI ĐỒNG & XÉT DUYỆT | Hội đồng chấm điểm | ADMIN, REVIEWER |
+| QUẢN TRỊ HỆ THỐNG | Tài chính & Thi đua, Mẫu tài liệu, Kho tài liệu (MinIO), Hàng đợi tác vụ, Quản lý người dùng | ADMIN |
 
 ## Database Schema (15 bảng)
 
@@ -368,13 +359,13 @@ docker cp nckhai-minio:/data ./minio-backup
 | GET | `/api/auth/profile` | Thông tin user + _count stats |
 | PATCH | `/api/auth/profile` | Cập nhật profile |
 
-### Công trình khoa học
+### Công trình khoa học / Bằng sáng chế / Giáo trình (chung API)
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| GET | `/api/works` | Danh sách (search, filter, paginate) |
-| POST | `/api/works` | Đăng ký mới |
-| GET | `/api/works/:id` | Chi tiết + workflow + reviews |
-| PATCH | `/api/works/:id` | Cập nhật / đổi trạng thái |
+| GET | `/api/works?category=scientific\|patent\|textbook` | Danh sách theo nhóm màn (search, filter, paginate). Áp dụng **quyền xem theo trạng thái duyệt** |
+| POST | `/api/works` | Đăng ký mới (type quyết định thuộc màn nào: PATENT / TEXTBOOK / còn lại = công trình KH) |
+| GET | `/api/works/:id` | Chi tiết + workflow + reviews (chặn nếu chưa duyệt và không phải chủ/ADMIN/REVIEWER) |
+| PATCH | `/api/works/:id` | Cập nhật / đổi trạng thái (đổi trạng thái: ADMIN/REVIEWER) |
 
 ### AI
 | Method | Endpoint | Mô tả |
@@ -387,14 +378,9 @@ docker cp nckhai-minio:/data ./minio-backup
 | GET | `/api/ai/suggest-experts/:workId` | AI đề xuất phản biện |
 | GET | `/api/ai/trends` | Phân tích xu hướng (overview, top keywords, growth YoY, insights) |
 
-### Quy đổi Giờ chuẩn NCKH
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| GET | `/api/research-hours/my` | Giờ chuẩn cá nhân + chi tiết |
-| POST | `/api/research-hours/calculate` | Tính cho user cụ thể (Admin) |
-| GET | `/api/research-hours/summary` | Tổng hợp toàn trường (Admin) |
-| GET | `/api/research-hours/journals` | Danh mục tạp chí (search, filter) |
-| POST | `/api/research-hours/journals` | Thêm tạp chí (Admin) |
+### Quy đổi Giờ chuẩn NCKH — ĐÃ GỠ BỎ
+
+> Toàn bộ endpoint `/api/research-hours/*` đã được loại bỏ (trả 404).
 
 ### Công bố, Thư viện, Tài chính & Thi đua, Hội đồng
 | Method | Endpoint | Mô tả |
@@ -593,7 +579,6 @@ NCKHAI/
 │   │   ├── publications/      # Công bố khoa học
 │   │   ├── library/           # Kho lưu trữ số
 │   │   ├── finance/           # Kinh phí & Khen thưởng
-│   │   ├── research-hours/    # Giờ chuẩn NCKH + Danh mục tạp chí
 │   │   ├── notifications/     # Thông báo
 │   │   ├── dashboard/         # Thống kê
 │   │   └── prisma/            # Database service
@@ -614,7 +599,6 @@ NCKHAI/
 │       │   ├── works/         # WorkList, WorkDetail, WorkCreate
 │       │   ├── Publications.tsx
 │       │   ├── CommitteeEvaluation.tsx
-│       │   ├── ResearchHoursPage.tsx
 │       │   ├── FinancePage.tsx
 │       │   ├── LibraryPage.tsx
 │       │   ├── ProfilePage.tsx

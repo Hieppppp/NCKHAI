@@ -10,6 +10,7 @@ import { aiService } from '../../services/aiService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/common/Toast';
 import { Role } from '../../types';
+import type { WorksModule } from '../../config/worksModules';
 
 const StatusColors: Record<string, string> = {
   DRAFT: '#94a3b8', SUBMITTED: '#3b82f6', OUTLINE_REVIEW: '#3b82f6',
@@ -38,7 +39,7 @@ function getFileIcon(mimeType: string) {
   return FileIcon;
 }
 
-export default function WorkDetail() {
+export default function WorkDetail({ mod }: { mod: WorksModule }) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
@@ -122,7 +123,7 @@ export default function WorkDetail() {
 
   return (
     <div className="wd">
-      <button className="wd-back" onClick={() => navigate('/projects')}><ArrowLeft size={16} /> Quay lại danh sách</button>
+      <button className="wd-back" onClick={() => navigate(mod.basePath)}><ArrowLeft size={16} /> Quay lại danh sách</button>
 
       {/* Header Card */}
       <div className="surface-card wd-header">

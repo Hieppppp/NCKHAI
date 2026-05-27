@@ -176,7 +176,9 @@ export default function SettingsPage() {
                   <label>Trang mặc định sau đăng nhập</label>
                   <select value={prefs['display.default_page'] || '/dashboard'} onChange={e => setPrefs({ ...prefs, 'display.default_page': e.target.value })}>
                     <option value="/dashboard">Bảng điều khiển</option>
-                    <option value="/projects">Quản lý đề tài</option>
+                    <option value="/projects">Công trình khoa học</option>
+                    <option value="/patents">Bằng sáng chế</option>
+                    <option value="/textbooks">Giáo trình</option>
                     <option value="/publications">Công bố khoa học</option>
                     <option value="/library">Thư viện số</option>
                   </select>

@@ -35,6 +35,12 @@ const WORKFLOW_TEMPLATES: Record<string, { name: string; status: WorkStatus }[]>
   ],
 };
 
+// Trạng thái coi như "đã duyệt" → mọi người đều xem được
+const PUBLIC_STATUSES: WorkStatus[] = [WorkStatus.ACCEPTED, WorkStatus.ARCHIVED];
+
+// Các loại công trình KH (loại trừ bằng sáng chế & giáo trình - có màn riêng)
+const NON_SCIENTIFIC_TYPES: WorkType[] = [WorkType.PATENT, WorkType.TEXTBOOK];
+
 @Injectable()
 export class ScientificWorksService {
   constructor(private prisma: PrismaService) {}
@@ -90,24 +96,51 @@ export class ScientificWorksService {
     return work;
   }
 
-  async findAll(query: { page?: number; limit?: number; search?: string; status?: string; type?: string; level?: string; userId?: number }) {
+  async findAll(query: {
+    page?: number; limit?: number; search?: string; status?: string; type?: string;
+    level?: string; category?: string; userId?: number;
+    requesterId?: number; requesterRole?: Role;
+  }) {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
+    const and: Record<string, unknown>[] = [];
 
     if (query.search) {
-      where.OR = [
-        { title: { contains: query.search, mode: 'insensitive' } },
-        { authors: { contains: query.search, mode: 'insensitive' } },
-        { keywords: { hasSome: [query.search] } },
-      ];
+      and.push({
+        OR: [
+          { title: { contains: query.search, mode: 'insensitive' } },
+          { authors: { contains: query.search, mode: 'insensitive' } },
+          { keywords: { hasSome: [query.search] } },
+        ],
+      });
     }
     if (query.status) where.status = query.status;
-    if (query.type) where.type = query.type;
     if (query.level) where.level = query.level;
     if (query.userId) where.userId = query.userId;
+
+    // Lọc theo nhóm màn quản lý (công trình KH / bằng sáng chế / giáo trình)
+    if (query.category === 'patent') where.type = WorkType.PATENT;
+    else if (query.category === 'textbook') where.type = WorkType.TEXTBOOK;
+    else if (query.category === 'scientific') where.type = { notIn: NON_SCIENTIFIC_TYPES };
+    // type cụ thể (dropdown) ghi đè nhóm
+    if (query.type) where.type = query.type;
+
+    // Quyền xem: chỉ ADMIN/REVIEWER thấy mọi trạng thái.
+    // LECTURER/STUDENT chỉ thấy công trình đã duyệt HOẶC do chính mình tạo.
+    const isReviewerOrAdmin = query.requesterRole === Role.ADMIN || query.requesterRole === Role.REVIEWER;
+    if (!isReviewerOrAdmin && query.requesterId) {
+      and.push({
+        OR: [
+          { status: { in: PUBLIC_STATUSES } },
+          { userId: query.requesterId },
+        ],
+      });
+    }
+
+    if (and.length) where.AND = and;
 
     const [data, total] = await Promise.all([
       this.prisma.scientificWork.findMany({
@@ -126,7 +159,7 @@ export class ScientificWorksService {
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, requesterId?: number, requesterRole?: Role) {
     const work = await this.prisma.scientificWork.findUnique({
       where: { id },
       include: {
@@ -146,6 +179,15 @@ export class ScientificWorksService {
     });
 
     if (!work) throw new NotFoundException(`Công trình #${id} không tồn tại`);
+
+    // Quyền xem: chưa duyệt thì chỉ chủ sở hữu + ADMIN/REVIEWER được xem
+    const isReviewerOrAdmin = requesterRole === Role.ADMIN || requesterRole === Role.REVIEWER;
+    const isPublic = PUBLIC_STATUSES.includes(work.status);
+    const isOwner = work.userId === requesterId;
+    if (!isReviewerOrAdmin && !isPublic && !isOwner) {
+      throw new ForbiddenException('Công trình này chưa được duyệt nên bạn không có quyền xem');
+    }
+
     return work;
   }
 

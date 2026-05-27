@@ -4,11 +4,12 @@ import {
   TrendingUp, FileText, Users, Clock, Award, Sparkles, Loader2,
   BookOpen, DollarSign, Library, ChevronRight, Upload, Plus,
   BarChart3, Bell, Calendar, ArrowUpRight, Brain, Shield,
+  Lightbulb, BookMarked,
 } from 'lucide-react';
 import { dashboardService } from '../services/dashboardService';
 import { notificationService } from '../services/notificationService';
 import { useAuth } from '../contexts/AuthContext';
-import { RoleLabels } from '../types';
+import { RoleLabels, Role } from '../types';
 
 const StatusLabels: Record<string, string> = {
   DRAFT: 'Bản nháp', SUBMITTED: 'Đã nộp', IN_PROGRESS: 'Đang thực hiện',
@@ -30,7 +31,7 @@ const TypeLabels: Record<string, string> = {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +65,7 @@ export default function DashboardPage() {
             và <strong>{accepted}</strong> đề tài đã nghiệm thu thành công.
           </p>
           <div className="hero-actions">
-            <button className="btn-hero primary" onClick={() => navigate('/projects/new')}><Plus size={16} /> Đăng ký đề tài mới</button>
+            <button className="btn-hero primary" onClick={() => navigate('/projects/new')}><Plus size={16} /> Đăng ký công trình mới</button>
             <button className="btn-hero secondary" onClick={() => navigate('/publications')}><Upload size={16} /> Upload bài báo</button>
             <button className="btn-hero secondary" onClick={() => navigate('/ai')}><Brain size={16} /> Trợ lý AI</button>
           </div>
@@ -90,19 +91,23 @@ export default function DashboardPage() {
         <StatCard icon={FileText} label="Tổng công trình" value={totalWorks} color="#2563eb" sub={`${Object.keys(stats?.byType || {}).length} loại hình`} onClick={() => navigate('/projects')} />
         <StatCard icon={Clock} label="Chờ xử lý" value={pending} color="#f59e0b" sub="cần phản biện / duyệt" onClick={() => navigate('/projects')} />
         <StatCard icon={Award} label="Đã nghiệm thu" value={accepted} color="#10b981" sub={`${totalWorks > 0 ? ((accepted / totalWorks) * 100).toFixed(0) : 0}% tổng số`} onClick={() => navigate('/projects')} />
-        <StatCard icon={Users} label="Người dùng" value={totalUsers} color="#8b5cf6" sub="giảng viên, sinh viên" onClick={() => navigate('/admin/users')} />
+        <StatCard icon={Users} label="Người dùng" value={totalUsers} color="#8b5cf6" sub="giảng viên, sinh viên" onClick={() => hasRole(Role.ADMIN) ? navigate('/admin/users') : navigate('/profile')} />
       </section>
 
       {/* Quick Links */}
       <section className="quick-links">
-        {[
-          { icon: BookOpen, label: 'Quản lý Đề tài', path: '/projects', color: '#2563eb' },
+        {([
+          { icon: BookOpen, label: 'Công trình KH', path: '/projects', color: '#2563eb' },
+          { icon: Lightbulb, label: 'Bằng sáng chế', path: '/patents', color: '#7c3aed' },
+          { icon: BookMarked, label: 'Giáo trình', path: '/textbooks', color: '#0d9488' },
           { icon: FileText, label: 'Công bố KH', path: '/publications', color: '#3b82f6' },
-          { icon: Users, label: 'Hội đồng', path: '/committees', color: '#0891b2' },
-          { icon: DollarSign, label: 'Kinh phí', path: '/finance', color: '#d97706' },
           { icon: Library, label: 'Thư viện số', path: '/library', color: '#059669' },
           { icon: Brain, label: 'Trợ lý AI', path: '/ai', color: '#dc2626' },
-        ].map(q => (
+          { icon: Users, label: 'Hội đồng', path: '/committees', color: '#0891b2', roles: [Role.ADMIN, Role.REVIEWER] },
+          { icon: DollarSign, label: 'Tài chính', path: '/finance', color: '#d97706', roles: [Role.ADMIN] },
+        ] as { icon: any; label: string; path: string; color: string; roles?: Role[] }[])
+          .filter(q => !q.roles || hasRole(...q.roles))
+          .map(q => (
           <div key={q.path} className="quick-card surface-card" onClick={() => navigate(q.path)}>
             <div className="quick-icon" style={{ background: `${q.color}12`, color: q.color }}><q.icon size={20} /></div>
             <span className="quick-label">{q.label}</span>
