@@ -6,6 +6,8 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
 import { ScientificWorksModule } from './scientific-works/scientific-works.module.js';
+import { PatentsModule } from './patents/patents.module.js';
+import { TextbooksModule } from './textbooks/textbooks.module.js';
 import { AiModule } from './ai/ai.module.js';
 import { CommitteesModule } from './committees/committees.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
@@ -26,6 +28,8 @@ import { RolesGuard } from './auth/guards/roles.guard.js';
     AuthModule,
     UsersModule,
     ScientificWorksModule,
+    PatentsModule,
+    TextbooksModule,
     AiModule,
     CommitteesModule,
     NotificationsModule,
