@@ -21,4 +21,27 @@ export const textbookService = {
   async remove(id: number) {
     await api.delete(`/textbooks/${id}`);
   },
+
+  // ─── Hồ sơ đính kèm ───
+  async uploadFile(textbookId: number, file: File, category?: string) {
+    const form = new FormData();
+    form.append('file', file);
+    if (category) form.append('category', category);
+    const { data } = await api.post(`/textbooks/${textbookId}/files`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000,
+    });
+    return data;
+  },
+  async getFiles(textbookId: number) {
+    const { data } = await api.get(`/textbooks/${textbookId}/files`);
+    return data;
+  },
+  async downloadFile(fileId: number) {
+    const { data } = await api.get(`/textbooks/files/${fileId}/download`);
+    return data as { url: string; originalName: string; mimeType: string };
+  },
+  async deleteFile(fileId: number) {
+    const { data } = await api.delete(`/textbooks/files/${fileId}`);
+    return data;
+  },
 };

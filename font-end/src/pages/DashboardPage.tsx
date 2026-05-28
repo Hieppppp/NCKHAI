@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp, FileText, Users, Clock, Award, Sparkles, Loader2,
-  BookOpen, DollarSign, Library, ChevronRight, Upload, Plus,
+  BookOpen, DollarSign, Library, ChevronRight, Plus,
   BarChart3, Bell, Calendar, ArrowUpRight, Brain, Shield,
-  Lightbulb, BookMarked,
+  Lightbulb, BookMarked, Trophy,
 } from 'lucide-react';
 import { dashboardService } from '../services/dashboardService';
 import { notificationService } from '../services/notificationService';
@@ -66,7 +66,7 @@ export default function DashboardPage() {
           </p>
           <div className="hero-actions">
             <button className="btn-hero primary" onClick={() => navigate('/projects/new')}><Plus size={16} /> Đăng ký công trình mới</button>
-            <button className="btn-hero secondary" onClick={() => navigate('/publications')}><Upload size={16} /> Upload bài báo</button>
+            <button className="btn-hero secondary" onClick={() => navigate('/publications')}><Trophy size={16} /> Công trình thành công</button>
             <button className="btn-hero secondary" onClick={() => navigate('/ai')}><Brain size={16} /> Trợ lý AI</button>
           </div>
         </div>
@@ -100,7 +100,7 @@ export default function DashboardPage() {
           { icon: BookOpen, label: 'Công trình KH', path: '/projects', color: '#2563eb' },
           { icon: Lightbulb, label: 'Bằng sáng chế', path: '/patents', color: '#7c3aed' },
           { icon: BookMarked, label: 'Giáo trình', path: '/textbooks', color: '#0d9488' },
-          { icon: FileText, label: 'Công bố KH', path: '/publications', color: '#3b82f6' },
+          { icon: Trophy, label: 'Công trình thành công', path: '/publications', color: '#3b82f6' },
           { icon: Library, label: 'Thư viện số', path: '/library', color: '#059669' },
           { icon: Brain, label: 'Trợ lý AI', path: '/ai', color: '#dc2626' },
           { icon: Users, label: 'Hội đồng', path: '/committees', color: '#0891b2', roles: [Role.ADMIN, Role.REVIEWER] },
@@ -235,8 +235,8 @@ export default function DashboardPage() {
           <div className="surface-card ai-tip-card">
             <div className="card-head"><Sparkles size={16} /><h3>Gợi ý từ AI</h3></div>
             <p className="ai-tip-text">
-              Upload bài báo tại "Công bố KH" để AI tự động trích xuất tiêu đề, tác giả, từ khóa.
-              Sử dụng "Trợ lý AI" để kiểm tra đạo văn và phân tích xu hướng nghiên cứu.
+              Upload tài liệu tại "Trợ lý AI" để tự động trích xuất tiêu đề, tác giả, từ khóa,
+              kiểm tra đạo văn và phân tích xu hướng nghiên cứu.
             </p>
             <button className="btn-ai-tip" onClick={() => navigate('/ai')}>
               <Sparkles size={14} /> Mở Trợ lý AI <ArrowUpRight size={14} />

@@ -31,6 +31,8 @@ export interface WorksModule {
   /** Hiển thị trường nào trong form tạo */
   showLevel: boolean;
   showBudget: boolean;
+  /** Hiện 2 ô tạp chí + ISSN/DOI hay không */
+  showJournal: boolean;
   /** Nhãn cho 2 ô phụ (map vào journalName / issn của ScientificWork) */
   journalLabel: string;
   journalPlaceholder: string;
@@ -84,10 +86,10 @@ export const WORKS_MODULES: Record<WorksModule['key'], WorksModule> = {
     itemNoun: 'công trình',
     types: [
       { value: 'RESEARCH_PROJECT', label: 'Đề tài NCKH' },
-      { value: 'THESIS', label: 'Luận văn / Luận án' },
     ],
     showLevel: true,
     showBudget: true,
+    showJournal: false,
     journalLabel: 'Tạp chí / Hội nghị',
     journalPlaceholder: 'VD: IEEE Access',
     issnLabel: 'ISSN / DOI',

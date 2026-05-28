@@ -164,7 +164,6 @@ export default function WorkDetail({ mod }: { mod: WorksModule }) {
         <div className="wd-meta-grid">
           {work.budget && <div className="wd-meta-item"><FileText size={14} /><div><small>Kinh phí</small><strong>{(work.budget / 1000000).toFixed(0)} triệu VNĐ</strong></div></div>}
           {work.aiScore && <div className="wd-meta-item"><Award size={14} /><div><small>Điểm AI</small><strong>{work.aiScore}/100 ({work.aiRank})</strong></div></div>}
-          {work.journalName && <div className="wd-meta-item"><FileText size={14} /><div><small>Tạp chí</small><strong>{work.journalName}</strong></div></div>}
           <div className="wd-meta-item"><Clock size={14} /><div><small>Ngày tạo</small><strong>{new Date(work.createdAt).toLocaleDateString('vi-VN')}</strong></div></div>
         </div>
 

@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Plus, Lightbulb, Loader2, ArrowLeft, Edit2, Trash2, Filter, X,
-  Calendar, Building2, Hash, Award, FileText,
+  Calendar, Building2, Hash, Award, FileText, Upload, Download, Eye,
 } from 'lucide-react';
 import { Modal } from '../../components/common/Modal';
 import { useToast } from '../../components/common/Toast';
@@ -47,6 +47,9 @@ export default function PatentsPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const [detail, setDetail] = useState<any>(null);
+  const [files, setFiles] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
@@ -126,7 +129,31 @@ export default function PatentsPage() {
   };
 
   const openDetail = async (id: number) => {
-    try { setDetail(await patentService.getOne(id)); } catch { err('Không mở được chi tiết'); }
+    try {
+      const [d, f] = await Promise.all([patentService.getOne(id), patentService.getFiles(id).catch(() => [])]);
+      setDetail(d); setFiles(f);
+    } catch { err('Không mở được chi tiết'); }
+  };
+
+  const handleUploadFile = async (e: { target: HTMLInputElement }) => {
+    const file = e.target.files?.[0];
+    if (!file || !detail) return;
+    setUploading(true);
+    try {
+      await patentService.uploadFile(detail.id, file);
+      ok(`Đã tải lên "${file.name}"`);
+      setFiles(await patentService.getFiles(detail.id));
+    } catch { err('Tải lên thất bại'); }
+    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+  };
+  const handleViewFile = async (fileId: number) => {
+    try { const { url } = await patentService.downloadFile(fileId); window.open(url, '_blank'); } catch { err('Không mở được file'); }
+  };
+  const handleDeleteFile = (f: any) => {
+    confirm('Xóa hồ sơ', `Xóa "${f.originalName}"?`, async () => {
+      try { await patentService.deleteFile(f.id); ok('Đã xóa'); setFiles(await patentService.getFiles(detail.id)); }
+      catch { err('Xóa thất bại'); }
+    }, { confirmLabel: 'Xóa', danger: true });
   };
 
   const hasFilters = statusFilter || typeFilter;
@@ -171,6 +198,34 @@ export default function PatentsPage() {
           {detail.keywords?.length > 0 && (
             <div className="pt-kws">{detail.keywords.map((k: string) => <span key={k} className="pt-kw">{k}</span>)}</div>
           )}
+
+          {/* Hồ sơ đính kèm */}
+          <div className="pt-files">
+            <div className="pt-files-head">
+              <h3><FileText size={15} /> Hồ sơ đính kèm ({files.length})</h3>
+              {canEdit(detail) && (
+                <button className="pt-up-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                  {uploading ? <Loader2 size={13} className="spin" /> : <Upload size={13} />} {uploading ? 'Đang tải...' : 'Tải lên'}
+                </button>
+              )}
+              <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleUploadFile} accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.tiff" />
+            </div>
+            {files.length === 0 ? (
+              <p className="pt-files-empty">Chưa có hồ sơ.{canEdit(detail) ? ' Tải lên bản mô tả sáng chế, bằng độc quyền (scan)...' : ''}</p>
+            ) : (
+              <div className="pt-file-list">
+                {files.map((f) => (
+                  <div key={f.id} className="pt-file-row">
+                    <FileText size={16} />
+                    <div className="pt-file-info"><span className="pt-file-name">{f.originalName}</span><span className="pt-file-meta">{(f.size / 1024).toFixed(0)} KB · {f.uploader?.name} · {fmtDate(f.createdAt)}</span></div>
+                    <button className="pt-file-act" title="Xem" onClick={() => handleViewFile(f.id)}><Eye size={14} /></button>
+                    <button className="pt-file-act" title="Tải về" onClick={() => handleViewFile(f.id)}><Download size={14} /></button>
+                    {canEdit(detail) && <button className="pt-file-act danger" title="Xóa" onClick={() => handleDeleteFile(f)}><Trash2 size={14} /></button>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {canModerate && (
             <div className="pt-status-change">
@@ -366,6 +421,20 @@ const styles = `
   .pt-info strong{font-size:.82rem;font-weight:700}
   .pt-kws{display:flex;flex-wrap:wrap;gap:5px}
   .pt-kw{padding:3px 10px;border-radius:6px;background:#f5f3ff;color:#7c3aed;font-size:.72rem;font-weight:700}
+  .pt-files{padding-top:1rem;border-top:1px solid var(--surface-variant)}
+  .pt-files-head{display:flex;align-items:center;gap:10px;margin-bottom:.6rem}
+  .pt-files-head h3{font-size:.8rem;font-weight:800;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px;flex:1}
+  .pt-up-btn{display:inline-flex;align-items:center;gap:5px;border:none;background:var(--signature-gradient);color:#fff;padding:6px 12px;border-radius:8px;font-weight:700;font-size:.75rem;cursor:pointer}
+  .pt-up-btn:disabled{opacity:.6;cursor:not-allowed}
+  .pt-files-empty{font-size:.8rem;color:var(--on-surface-muted)}
+  .pt-file-list{display:flex;flex-direction:column;gap:.5rem}
+  .pt-file-row{display:flex;align-items:center;gap:10px;padding:.6rem .8rem;background:var(--surface-low);border-radius:8px;color:var(--on-surface-muted)}
+  .pt-file-info{flex:1;min-width:0;display:flex;flex-direction:column}
+  .pt-file-name{font-weight:600;font-size:.82rem;color:var(--on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pt-file-meta{font-size:.68rem}
+  .pt-file-act{width:28px;height:28px;border:none;border-radius:6px;background:var(--surface-lowest);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--on-surface-muted)}
+  .pt-file-act:hover{background:#eef2ff;color:var(--primary-indigo)}
+  .pt-file-act.danger:hover{background:#fee2e2;color:#dc2626}
   .pt-status-change{padding-top:1rem;border-top:1px solid var(--surface-variant)}
   .pt-status-change label{font-size:.72rem;font-weight:700;color:var(--on-surface-muted);display:block;margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.04em}
   .pt-status-change select{padding:8px 12px;border:1.5px solid var(--surface-variant);border-radius:8px;font-size:.85rem;background:var(--surface-lowest);cursor:pointer}

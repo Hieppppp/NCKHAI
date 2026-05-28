@@ -298,6 +298,12 @@ model FileUpload {
   workId Int?
   work   ScientificWork? @relation(fields: [workId], references: [id], onDelete: SetNull)
 
+  patentId Int?
+  patent   Patent? @relation(fields: [patentId], references: [id], onDelete: Cascade)
+
+  textbookId Int?
+  textbook   Textbook? @relation(fields: [textbookId], references: [id], onDelete: Cascade)
+
   uploaderId Int
   uploader   User @relation(fields: [uploaderId], references: [id])
 
@@ -518,6 +524,7 @@ model Patent {
 
   userId      Int
   user        User         @relation(fields: [userId], references: [id])
+  files       FileUpload[]
 
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -547,6 +554,7 @@ model Textbook {
 
   userId      Int
   user        User           @relation(fields: [userId], references: [id])
+  files       FileUpload[]
 
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt

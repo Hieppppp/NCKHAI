@@ -78,11 +78,13 @@ export default function WorkCreate({ mod }: { mod: WorksModule }) {
           <Field label="Tóm tắt / Mô tả" value={form.abstract} onChange={(v) => set('abstract', v)} placeholder="Mô tả ngắn gọn nội dung..." multiline />
           <Field label="Từ khóa (cách nhau bởi dấu phẩy)" value={form.keywords} onChange={(v) => set('keywords', v)} placeholder="VD: AI, deep learning, y tế, chẩn đoán" />
 
-          <div style={{ display: 'grid', gridTemplateColumns: mod.showBudget ? '1fr 1fr 1fr' : '1fr 1fr', gap: 14 }}>
-            {mod.showBudget && <Field label="Kinh phí (VNĐ)" value={form.budget} onChange={(v) => set('budget', v)} placeholder="50000000" />}
-            <Field label={mod.journalLabel} value={form.journalName} onChange={(v) => set('journalName', v)} placeholder={mod.journalPlaceholder} />
-            <Field label={mod.issnLabel} value={form.issn} onChange={(v) => set('issn', v)} placeholder={mod.issnPlaceholder} />
-          </div>
+          {(mod.showBudget || mod.showJournal) && (
+            <div style={{ display: 'grid', gridTemplateColumns: mod.showJournal ? (mod.showBudget ? '1fr 1fr 1fr' : '1fr 1fr') : '1fr', gap: 14 }}>
+              {mod.showBudget && <Field label="Kinh phí (VNĐ)" value={form.budget} onChange={(v) => set('budget', v)} placeholder="50000000" />}
+              {mod.showJournal && <Field label={mod.journalLabel} value={form.journalName} onChange={(v) => set('journalName', v)} placeholder={mod.journalPlaceholder} />}
+              {mod.showJournal && <Field label={mod.issnLabel} value={form.issn} onChange={(v) => set('issn', v)} placeholder={mod.issnPlaceholder} />}
+            </div>
+          )}
 
           <button type="submit" disabled={loading} className="btn-signature" style={{ padding: '14px', fontSize: '0.95rem', marginTop: 8 }}>
             {loading && <Loader2 size={18} className="spin" />}
