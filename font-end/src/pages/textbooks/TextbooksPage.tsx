@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Plus, BookMarked, Loader2, ArrowLeft, Edit2, Trash2, Filter, X,
-  Calendar, Building2, Hash, BookOpen, Layers, FileText,
+  Calendar, Building2, Hash, BookOpen, Layers, FileText, Upload, Download, Eye,
 } from 'lucide-react';
 import { Modal } from '../../components/common/Modal';
 import { useToast } from '../../components/common/Toast';
@@ -48,6 +48,9 @@ export default function TextbooksPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const [detail, setDetail] = useState<any>(null);
+  const [files, setFiles] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
@@ -122,7 +125,31 @@ export default function TextbooksPage() {
   };
 
   const openDetail = async (id: number) => {
-    try { setDetail(await textbookService.getOne(id)); } catch { err('Không mở được chi tiết'); }
+    try {
+      const [d, f] = await Promise.all([textbookService.getOne(id), textbookService.getFiles(id).catch(() => [])]);
+      setDetail(d); setFiles(f);
+    } catch { err('Không mở được chi tiết'); }
+  };
+
+  const handleUploadFile = async (e: { target: HTMLInputElement }) => {
+    const file = e.target.files?.[0];
+    if (!file || !detail) return;
+    setUploading(true);
+    try {
+      await textbookService.uploadFile(detail.id, file);
+      ok(`Đã tải lên "${file.name}"`);
+      setFiles(await textbookService.getFiles(detail.id));
+    } catch { err('Tải lên thất bại'); }
+    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+  };
+  const handleViewFile = async (fileId: number) => {
+    try { const { url } = await textbookService.downloadFile(fileId); window.open(url, '_blank'); } catch { err('Không mở được file'); }
+  };
+  const handleDeleteFile = (f: any) => {
+    confirm('Xóa hồ sơ', `Xóa "${f.originalName}"?`, async () => {
+      try { await textbookService.deleteFile(f.id); ok('Đã xóa'); setFiles(await textbookService.getFiles(detail.id)); }
+      catch { err('Xóa thất bại'); }
+    }, { confirmLabel: 'Xóa', danger: true });
   };
 
   const hasFilters = statusFilter || typeFilter;
@@ -167,6 +194,34 @@ export default function TextbooksPage() {
           {detail.keywords?.length > 0 && (
             <div className="tb-kws">{detail.keywords.map((k: string) => <span key={k} className="tb-kw">{k}</span>)}</div>
           )}
+
+          {/* Hồ sơ đính kèm */}
+          <div className="tb-files">
+            <div className="tb-files-head">
+              <h3><FileText size={15} /> Tài liệu đính kèm ({files.length})</h3>
+              {canEdit(detail) && (
+                <button className="tb-up-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                  {uploading ? <Loader2 size={13} className="spin" /> : <Upload size={13} />} {uploading ? 'Đang tải...' : 'Tải lên'}
+                </button>
+              )}
+              <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleUploadFile} accept=".pdf,.docx,.doc,.png,.jpg,.jpeg" />
+            </div>
+            {files.length === 0 ? (
+              <p className="tb-files-empty">Chưa có tài liệu.{canEdit(detail) ? ' Tải lên bản PDF giáo trình, quyết định phê duyệt...' : ''}</p>
+            ) : (
+              <div className="tb-file-list">
+                {files.map((f) => (
+                  <div key={f.id} className="tb-file-row">
+                    <FileText size={16} />
+                    <div className="tb-file-info"><span className="tb-file-name">{f.originalName}</span><span className="tb-file-meta">{(f.size / 1024).toFixed(0)} KB · {f.uploader?.name} · {fmtDate(f.createdAt)}</span></div>
+                    <button className="tb-file-act" title="Xem" onClick={() => handleViewFile(f.id)}><Eye size={14} /></button>
+                    <button className="tb-file-act" title="Tải về" onClick={() => handleViewFile(f.id)}><Download size={14} /></button>
+                    {canEdit(detail) && <button className="tb-file-act danger" title="Xóa" onClick={() => handleDeleteFile(f)}><Trash2 size={14} /></button>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {canModerate && (
             <div className="tb-status-change">
@@ -364,6 +419,20 @@ const styles = `
   .tb-info strong{font-size:.82rem;font-weight:700}
   .tb-kws{display:flex;flex-wrap:wrap;gap:5px}
   .tb-kw{padding:3px 10px;border-radius:6px;background:#ecfeff;color:#0d9488;font-size:.72rem;font-weight:700}
+  .tb-files{padding-top:1rem;border-top:1px solid var(--surface-variant)}
+  .tb-files-head{display:flex;align-items:center;gap:10px;margin-bottom:.6rem}
+  .tb-files-head h3{font-size:.8rem;font-weight:800;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px;flex:1}
+  .tb-up-btn{display:inline-flex;align-items:center;gap:5px;border:none;background:var(--signature-gradient);color:#fff;padding:6px 12px;border-radius:8px;font-weight:700;font-size:.75rem;cursor:pointer}
+  .tb-up-btn:disabled{opacity:.6;cursor:not-allowed}
+  .tb-files-empty{font-size:.8rem;color:var(--on-surface-muted)}
+  .tb-file-list{display:flex;flex-direction:column;gap:.5rem}
+  .tb-file-row{display:flex;align-items:center;gap:10px;padding:.6rem .8rem;background:var(--surface-low);border-radius:8px;color:var(--on-surface-muted)}
+  .tb-file-info{flex:1;min-width:0;display:flex;flex-direction:column}
+  .tb-file-name{font-weight:600;font-size:.82rem;color:var(--on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tb-file-meta{font-size:.68rem}
+  .tb-file-act{width:28px;height:28px;border:none;border-radius:6px;background:var(--surface-lowest);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--on-surface-muted)}
+  .tb-file-act:hover{background:#eef2ff;color:var(--primary-indigo)}
+  .tb-file-act.danger:hover{background:#fee2e2;color:#dc2626}
   .tb-status-change{padding-top:1rem;border-top:1px solid var(--surface-variant)}
   .tb-status-change label{font-size:.72rem;font-weight:700;color:var(--on-surface-muted);display:block;margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.04em}
   .tb-status-change select{padding:8px 12px;border:1.5px solid var(--surface-variant);border-radius:8px;font-size:.85rem;background:var(--surface-lowest);cursor:pointer}

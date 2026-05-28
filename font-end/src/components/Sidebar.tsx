@@ -135,7 +135,15 @@ export const Sidebar = () => {
 
         .nav-section {
           flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          margin-right: -0.5rem;
+          padding-right: 0.5rem;
         }
+        .nav-section::-webkit-scrollbar { width: 6px; }
+        .nav-section::-webkit-scrollbar-thumb { background: var(--surface-variant); border-radius: 999px; }
+        .nav-section::-webkit-scrollbar-thumb:hover { background: var(--on-surface-muted); }
 
         .nav-list {
           list-style: none;

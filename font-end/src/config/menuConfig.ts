@@ -3,7 +3,7 @@ import {
   BookOpen,
   Lightbulb,
   BookMarked,
-  FileText,
+  Trophy,
   FileSignature,
   Users,
   Wallet,
@@ -38,7 +38,7 @@ export const mainMenuItems: MenuItem[] = [
   { key: 'works', name: 'Công trình khoa học', icon: BookOpen, path: '/projects', section: 'QUẢN LÝ CÔNG TRÌNH' },
   { key: 'patents', name: 'Bằng sáng chế', icon: Lightbulb, path: '/patents', section: 'QUẢN LÝ CÔNG TRÌNH' },
   { key: 'textbooks', name: 'Giáo trình', icon: BookMarked, path: '/textbooks', section: 'QUẢN LÝ CÔNG TRÌNH' },
-  { key: 'publications', name: 'Công bố khoa học', icon: FileText, path: '/publications', section: 'QUẢN LÝ CÔNG TRÌNH' },
+  { key: 'publications', name: 'Công trình thành công', icon: Trophy, path: '/publications', section: 'QUẢN LÝ CÔNG TRÌNH' },
 
   // ── Tra cứu & hỗ trợ ──
   { key: 'library', name: 'Thư viện số', icon: Library, path: '/library', section: 'TRA CỨU & TRỢ LÝ' },

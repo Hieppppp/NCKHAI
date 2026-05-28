@@ -38,9 +38,9 @@ const WORKFLOW_TEMPLATES: Record<string, { name: string; status: WorkStatus }[]>
 // Trạng thái coi như "đã duyệt" → mọi người đều xem được
 const PUBLIC_STATUSES: WorkStatus[] = [WorkStatus.ACCEPTED, WorkStatus.ARCHIVED];
 
-// Công trình khoa học = Đề tài NCKH + Luận văn (Bài báo/Hội nghị thuộc màn Công bố;
+// Công trình khoa học = chỉ Đề tài NCKH (Bài báo/Hội nghị/Luận văn không thuộc màn này;
 // Bằng sáng chế & Giáo trình có module riêng)
-const SCIENTIFIC_TYPES: WorkType[] = [WorkType.RESEARCH_PROJECT, WorkType.THESIS];
+const SCIENTIFIC_TYPES: WorkType[] = [WorkType.RESEARCH_PROJECT];
 
 @Injectable()
 export class ScientificWorksService {

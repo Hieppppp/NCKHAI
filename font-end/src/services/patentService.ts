@@ -21,4 +21,27 @@ export const patentService = {
   async remove(id: number) {
     await api.delete(`/patents/${id}`);
   },
+
+  // ─── Hồ sơ đính kèm ───
+  async uploadFile(patentId: number, file: File, category?: string) {
+    const form = new FormData();
+    form.append('file', file);
+    if (category) form.append('category', category);
+    const { data } = await api.post(`/patents/${patentId}/files`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000,
+    });
+    return data;
+  },
+  async getFiles(patentId: number) {
+    const { data } = await api.get(`/patents/${patentId}/files`);
+    return data;
+  },
+  async downloadFile(fileId: number) {
+    const { data } = await api.get(`/patents/files/${fileId}/download`);
+    return data as { url: string; originalName: string; mimeType: string };
+  },
+  async deleteFile(fileId: number) {
+    const { data } = await api.delete(`/patents/files/${fileId}`);
+    return data;
+  },
 };
